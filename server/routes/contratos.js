@@ -236,6 +236,26 @@ router.post('/:id/firmar', async (req, res) => {
                     doc.fontSize(12).font('Helvetica-Bold').text(`${bloque.etiqueta || bloque.variable}: `, { continued: true });
                     doc.font('Helvetica').text(valor);
                     doc.moveDown(0.5);
+                } else if (bloque.tipo === 'imagen') {
+                    const imagenes = datos[bloque.variable];
+                    if (imagenes) {
+                        doc.fontSize(12).font('Helvetica-Bold').text(`${bloque.etiqueta || bloque.variable}:`);
+                        doc.moveDown(0.3);
+                        const urls = Array.isArray(imagenes) ? imagenes : [imagenes];
+                        urls.forEach((imgUrl) => {
+                            try {
+                                // imgUrl is like "/uploads/imagenes/xxx.jpg"
+                                const imgPath = path.join(__dirname, '..', imgUrl);
+                                if (fs.existsSync(imgPath)) {
+                                    doc.image(imgPath, { width: 200 });
+                                    doc.moveDown(0.5);
+                                }
+                            } catch (imgErr) {
+                                console.warn('No se pudo insertar imagen en PDF:', imgErr.message);
+                            }
+                        });
+                        doc.moveDown(0.5);
+                    }
                 }
             });
 

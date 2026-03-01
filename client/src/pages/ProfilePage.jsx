@@ -12,6 +12,7 @@ function ProfilePage() {
     const [passwordMsg, setPasswordMsg] = useState('');
     const [passwordErr, setPasswordErr] = useState('');
     const [saving, setSaving] = useState(false);
+    const [upgrading, setUpgrading] = useState(null); // 'pro' | 'empresa' | null
 
     useEffect(() => {
         cargarPerfil();
@@ -38,6 +39,32 @@ function ProfilePage() {
             await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
         } catch (err) { /* logout anyway */ }
         navigate('/');
+    };
+
+    const handleUpgrade = async (plan) => {
+        setUpgrading(plan);
+        try {
+            const res = await fetch('/api/suscripciones/crear', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ plan }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                alert(data.error || 'Error al crear la suscripción.');
+                return;
+            }
+
+            // Redirigir al checkout de MercadoPago
+            window.location.href = data.init_point;
+        } catch (err) {
+            alert('Error de conexión. Intenta de nuevo.');
+        } finally {
+            setUpgrading(null);
+        }
     };
 
     const cambiarContrasena = async () => {
@@ -90,9 +117,19 @@ function ProfilePage() {
     const contratosUsados = usuario?.contratos_usados_mes || 0;
     const plantillasCreadas = usuario?.plantillas_creadas || 0;
     const esGratuito = usuario?.plan_actual === 'Gratuito';
+    const esPro = usuario?.plan_actual === 'Pro';
+    const esEmpresa = usuario?.plan_actual === 'Empresa';
+    const esPago = esPro || esEmpresa;
 
     const contratosPercent = esGratuito ? Math.min((contratosUsados / 15) * 100, 100) : 0;
-    const plantillasPercent = esGratuito ? Math.min((plantillasCreadas / 1) * 100, 100) : 0;
+    const plantillasPercent = esGratuito ? Math.min((plantillasCreadas / 2) * 100, 100) : 0;
+
+    const formatDate = (dateStr) => {
+        if (!dateStr) return null;
+        return new Date(dateStr).toLocaleDateString('es-ES', {
+            day: 'numeric', month: 'long', year: 'numeric'
+        });
+    };
 
     if (loading) {
         return (
@@ -129,8 +166,34 @@ function ProfilePage() {
 
                 <div className="plan-current">
                     <span className="plan-name">{usuario?.plan_actual}</span>
-                    <span className="plan-badge-large">{usuario?.plan_actual}</span>
+                    <span className={`plan-badge-large ${esPago ? 'plan-paid' : ''}`}>
+                        {usuario?.plan_actual}
+                    </span>
                 </div>
+
+                {/* Plan activo info */}
+                {esPago && (
+                    <div className="plan-active-info">
+                        <div className="plan-status-row">
+                            <span>Estado</span>
+                            <span className={`status-tag ${usuario?.plan_estado}`}>
+                                {usuario?.plan_estado === 'activo' ? '✅ Activo' :
+                                    usuario?.plan_estado === 'cancelado' ? '❌ Cancelado' :
+                                        usuario?.plan_estado === 'suspendido' ? '⚠️ Suspendido' : '⏳ Pendiente'}
+                            </span>
+                        </div>
+                        {usuario?.plan_vencimiento && (
+                            <div className="plan-status-row">
+                                <span>Próximo cobro</span>
+                                <span>{formatDate(usuario.plan_vencimiento)}</span>
+                            </div>
+                        )}
+                        <div className="plan-benefits-active">
+                            ✨ Plantillas y contratos ilimitados • Marca blanca
+                            {esEmpresa && ' • 5 técnicos'}
+                        </div>
+                    </div>
+                )}
 
                 {esGratuito && (
                     <>
@@ -150,7 +213,7 @@ function ProfilePage() {
                         <div className="progress-item">
                             <div className="progress-label">
                                 <span>Plantillas creadas</span>
-                                <span>{plantillasCreadas}/1</span>
+                                <span>{plantillasCreadas}/2</span>
                             </div>
                             <div className="progress-bar">
                                 <div
@@ -160,17 +223,73 @@ function ProfilePage() {
                             </div>
                         </div>
 
-                        <div className="upgrade-benefits">
-                            <strong>✨ Beneficios del Plan Pro:</strong><br />
-                            • Plantillas y contratos ilimitados<br />
-                            • Marca blanca en PDFs y correos<br />
-                            • Soporte prioritario
-                        </div>
+                        {/* Plan cards */}
+                        <div className="plan-cards">
+                            <div className="plan-card pro">
+                                <div className="plan-card-header">
+                                    <span className="plan-card-name">Pro</span>
+                                    <span className="plan-card-price">$8.000<small>/mes</small></span>
+                                </div>
+                                <ul className="plan-card-features">
+                                    <li>✓ Contratos ilimitados</li>
+                                    <li>✓ Plantillas ilimitadas</li>
+                                    <li>✓ Marca blanca en PDFs</li>
+                                    <li>✓ Soporte prioritario</li>
+                                </ul>
+                                <button
+                                    className="upgrade-btn"
+                                    onClick={() => handleUpgrade('pro')}
+                                    disabled={upgrading !== null}
+                                >
+                                    {upgrading === 'pro' ? 'Redirigiendo...' : '🚀 Pasarse a Pro'}
+                                </button>
+                            </div>
 
-                        <button className="upgrade-btn">
-                            🚀 Pasarse a Pro
-                        </button>
+                            <div className="plan-card empresa">
+                                <div className="plan-card-header">
+                                    <span className="plan-card-name">Empresa</span>
+                                    <span className="plan-card-price">$25.000<small>/mes</small></span>
+                                </div>
+                                <ul className="plan-card-features">
+                                    <li>✓ Todo lo de Pro</li>
+                                    <li>✓ 5 técnicos incluidos</li>
+                                    <li>✓ Panel de administración</li>
+                                    <li>✓ Reportes avanzados</li>
+                                </ul>
+                                <button
+                                    className="upgrade-btn empresa-btn"
+                                    onClick={() => handleUpgrade('empresa')}
+                                    disabled={upgrading !== null}
+                                >
+                                    {upgrading === 'empresa' ? 'Redirigiendo...' : '🏢 Plan Empresa'}
+                                </button>
+                            </div>
+                        </div>
                     </>
+                )}
+
+                {/* Upgrade from Pro to Empresa */}
+                {esPro && (
+                    <div className="plan-cards" style={{ marginTop: '16px' }}>
+                        <div className="plan-card empresa">
+                            <div className="plan-card-header">
+                                <span className="plan-card-name">Empresa</span>
+                                <span className="plan-card-price">$25.000<small>/mes</small></span>
+                            </div>
+                            <ul className="plan-card-features">
+                                <li>✓ Todo lo de Pro</li>
+                                <li>✓ 5 técnicos incluidos</li>
+                                <li>✓ Panel de administración</li>
+                            </ul>
+                            <button
+                                className="upgrade-btn empresa-btn"
+                                onClick={() => handleUpgrade('empresa')}
+                                disabled={upgrading !== null}
+                            >
+                                {upgrading === 'empresa' ? 'Redirigiendo...' : '⬆️ Subir a Empresa'}
+                            </button>
+                        </div>
+                    </div>
                 )}
             </div>
 

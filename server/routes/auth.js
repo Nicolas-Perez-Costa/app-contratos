@@ -112,7 +112,8 @@ router.get('/me', async (req, res) => {
 
     try {
         const result = await pool.query(
-            `SELECT id_usuario, email, plan_actual, contratos_usados_mes, plantillas_creadas, created_at
+            `SELECT id_usuario, email, plan_actual, plan_estado, contratos_usados_mes,
+                    plantillas_creadas, suscripcion_mp_id, plan_vencimiento, created_at
        FROM usuarios WHERE id_usuario = $1`,
             [req.session.userId]
         );

@@ -1,6 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import imageCompression from 'browser-image-compression';
 import '../styles/components/_pages.scss';
+
+const COMPRESSION_OPTIONS = {
+    maxSizeMB: 0.5,
+    maxWidthOrHeight: 1280,
+    useWebWorker: true,
+    fileType: 'image/jpeg',
+};
 
 function ContractFormPage() {
     const { idPlantilla } = useParams();
@@ -8,9 +16,14 @@ function ContractFormPage() {
     const [plantilla, setPlantilla] = useState(null);
     const [titulo, setTitulo] = useState('');
     const [datos, setDatos] = useState({});
+    const [imageFields, setImageFields] = useState({}); // { variable: [{ id, previewUrl, s3Url, uploading, compressing, error, compressedSize, originalName }] }
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
+
+    // Refs for hidden file inputs — keyed by variable
+    const cameraRefs = useRef({});
+    const galleryRefs = useRef({});
 
     useEffect(() => {
         cargarPlantilla();
@@ -31,10 +44,9 @@ function ContractFormPage() {
                 ? JSON.parse(data.plantilla.estructura_bloques)
                 : (data.plantilla.estructura_bloques || []);
 
-            // Pre-populate datos keys
             const initial = {};
             bloques.forEach((b) => {
-                if (b.variable) initial[b.variable] = '';
+                if (b.variable && b.tipo !== 'imagen') initial[b.variable] = '';
             });
             setDatos(initial);
             setTitulo(`Contrato - ${data.plantilla.nombre_plantilla}`);
@@ -46,17 +58,134 @@ function ContractFormPage() {
     };
 
     const handleChange = (variable, valor) => {
-        setDatos({ ...datos, [variable]: valor });
+        setDatos((prev) => ({ ...prev, [variable]: valor }));
     };
 
-    const handleImageChange = async (variable, file) => {
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            setDatos({ ...datos, [variable]: reader.result });
-        };
-        reader.readAsDataURL(file);
+    // ── Image handling ──────────────────────────────────────
+
+    const uploadImage = async (compressedFile) => {
+        const formData = new FormData();
+        formData.append('image', compressedFile, `img_${Date.now()}.jpg`);
+
+        const response = await fetch('/api/uploads/image', {
+            method: 'POST',
+            body: formData,
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            throw new Error(data.error || 'Error al subir la imagen.');
+        }
+
+        const { url } = await response.json();
+        return url;
     };
+
+    const updateImageInField = useCallback((variable, imageId, updates) => {
+        setImageFields((prev) => ({
+            ...prev,
+            [variable]: (prev[variable] || []).map((img) =>
+                img.id === imageId ? { ...img, ...updates } : img
+            ),
+        }));
+    }, []);
+
+    const handleImageSelected = async (variable, event) => {
+        const files = Array.from(event.target.files);
+        if (!files.length) return;
+
+        for (const file of files) {
+            const imageId = `img_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+
+            // Add placeholder to state
+            setImageFields((prev) => ({
+                ...prev,
+                [variable]: [
+                    ...(prev[variable] || []),
+                    {
+                        id: imageId,
+                        previewUrl: null,
+                        s3Url: null,
+                        uploading: false,
+                        compressing: true,
+                        error: null,
+                        compressedSize: 0,
+                        originalName: file.name,
+                        file: null, // will hold compressed file for retry
+                    },
+                ],
+            }));
+
+            try {
+                // 1. Compress
+                const compressed = await imageCompression(file, COMPRESSION_OPTIONS);
+                const previewUrl = URL.createObjectURL(compressed);
+
+                updateImageInField(variable, imageId, {
+                    previewUrl,
+                    compressing: false,
+                    uploading: true,
+                    compressedSize: compressed.size,
+                    file: compressed,
+                });
+
+                // 2. Upload
+                const s3Url = await uploadImage(compressed);
+
+                updateImageInField(variable, imageId, {
+                    s3Url,
+                    uploading: false,
+                });
+            } catch (err) {
+                console.error('Error procesando imagen:', err);
+                updateImageInField(variable, imageId, {
+                    compressing: false,
+                    uploading: false,
+                    error: err.message || 'Error al procesar la imagen.',
+                });
+            }
+        }
+
+        // Reset input so user can select the same file again
+        event.target.value = '';
+    };
+
+    const retryUpload = async (variable, imageId) => {
+        const images = imageFields[variable] || [];
+        const img = images.find((i) => i.id === imageId);
+        if (!img || !img.file) return;
+
+        updateImageInField(variable, imageId, { uploading: true, error: null });
+
+        try {
+            const s3Url = await uploadImage(img.file);
+            updateImageInField(variable, imageId, { s3Url, uploading: false });
+        } catch (err) {
+            updateImageInField(variable, imageId, {
+                uploading: false,
+                error: err.message || 'Error al subir la imagen.',
+            });
+        }
+    };
+
+    const removeImage = (variable, imageId) => {
+        setImageFields((prev) => {
+            const images = (prev[variable] || []).filter((img) => img.id !== imageId);
+            // Revoke blob URL to free memory
+            const removed = (prev[variable] || []).find((img) => img.id === imageId);
+            if (removed?.previewUrl) URL.revokeObjectURL(removed.previewUrl);
+            return { ...prev, [variable]: images };
+        });
+    };
+
+    const formatFileSize = (bytes) => {
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    };
+
+    // ── Save ────────────────────────────────────────────────
 
     const guardar = async () => {
         if (!titulo.trim()) {
@@ -64,10 +193,28 @@ function ContractFormPage() {
             return;
         }
 
+        // Check if any images are still uploading
+        const allImages = Object.values(imageFields).flat();
+        if (allImages.some((img) => img.uploading || img.compressing)) {
+            setError('Espera a que todas las imágenes terminen de subirse.');
+            return;
+        }
+
         setSaving(true);
         setError('');
 
         try {
+            // Build datos with image URLs
+            const datosCompletos = { ...datos };
+            for (const [variable, images] of Object.entries(imageFields)) {
+                const urls = images
+                    .filter((img) => img.s3Url)
+                    .map((img) => img.s3Url);
+                if (urls.length > 0) {
+                    datosCompletos[variable] = urls;
+                }
+            }
+
             const res = await fetch('/api/contratos', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -75,7 +222,7 @@ function ContractFormPage() {
                 body: JSON.stringify({
                     id_plantilla: idPlantilla,
                     titulo_contrato: titulo,
-                    datos_ingresados: datos,
+                    datos_ingresados: datosCompletos,
                 }),
             });
 
@@ -93,6 +240,8 @@ function ContractFormPage() {
             setSaving(false);
         }
     };
+
+    // ── Render ───────────────────────────────────────────────
 
     if (loading) {
         return (
@@ -166,17 +315,104 @@ function ContractFormPage() {
                     {bloque.tipo === 'imagen' && (
                         <>
                             <div className="block-label">🖼️ {bloque.etiqueta || bloque.variable}</div>
+
+                            {/* Hidden file inputs */}
                             <input
+                                ref={(el) => { cameraRefs.current[bloque.variable] = el; }}
                                 type="file"
                                 accept="image/*"
-                                onChange={(e) => handleImageChange(bloque.variable, e.target.files[0])}
+                                capture="environment"
+                                onChange={(e) => handleImageSelected(bloque.variable, e)}
+                                style={{ display: 'none' }}
                             />
-                            {datos[bloque.variable] && (
-                                <img
-                                    src={datos[bloque.variable]}
-                                    alt="Preview"
-                                    style={{ maxWidth: '100%', borderRadius: '8px', marginTop: '8px' }}
-                                />
+                            <input
+                                ref={(el) => { galleryRefs.current[bloque.variable] = el; }}
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                onChange={(e) => handleImageSelected(bloque.variable, e)}
+                                style={{ display: 'none' }}
+                            />
+
+                            {/* Action buttons */}
+                            <div className="image-buttons">
+                                <button
+                                    type="button"
+                                    className="image-btn camera-btn"
+                                    onClick={() => cameraRefs.current[bloque.variable]?.click()}
+                                >
+                                    📷 Tomar foto
+                                </button>
+                                <button
+                                    type="button"
+                                    className="image-btn gallery-btn"
+                                    onClick={() => galleryRefs.current[bloque.variable]?.click()}
+                                >
+                                    🖼️ Subir desde galería
+                                </button>
+                            </div>
+
+                            {/* Thumbnail grid */}
+                            {(imageFields[bloque.variable] || []).length > 0 && (
+                                <div className="image-thumbnails-grid">
+                                    {(imageFields[bloque.variable] || []).map((img) => (
+                                        <div className={`image-thumbnail ${img.error ? 'has-error' : ''}`} key={img.id}>
+                                            {img.previewUrl ? (
+                                                <img src={img.previewUrl} alt={img.originalName} />
+                                            ) : (
+                                                <div className="image-placeholder">
+                                                    <div className="mini-spinner" />
+                                                </div>
+                                            )}
+
+                                            {/* Overlay for compressing/uploading */}
+                                            {(img.compressing || img.uploading) && (
+                                                <div className="image-overlay">
+                                                    <div className="mini-spinner" />
+                                                    <span>{img.compressing ? 'Comprimiendo...' : 'Subiendo...'}</span>
+                                                </div>
+                                            )}
+
+                                            {/* Error overlay */}
+                                            {img.error && (
+                                                <div className="image-overlay error-overlay">
+                                                    <span className="error-text">Error</span>
+                                                    <button
+                                                        type="button"
+                                                        className="image-retry-btn"
+                                                        onClick={() => retryUpload(bloque.variable, img.id)}
+                                                    >
+                                                        🔄 Reintentar
+                                                    </button>
+                                                </div>
+                                            )}
+
+                                            {/* Remove button */}
+                                            {!img.compressing && !img.uploading && (
+                                                <button
+                                                    type="button"
+                                                    className="image-remove-btn"
+                                                    onClick={() => removeImage(bloque.variable, img.id)}
+                                                    title="Eliminar imagen"
+                                                >
+                                                    ✕
+                                                </button>
+                                            )}
+
+                                            {/* Size label */}
+                                            {img.compressedSize > 0 && !img.compressing && (
+                                                <div className="image-size-label">
+                                                    {formatFileSize(img.compressedSize)}
+                                                </div>
+                                            )}
+
+                                            {/* Upload success check */}
+                                            {img.s3Url && !img.uploading && !img.error && (
+                                                <div className="image-success-badge">✓</div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
                             )}
                         </>
                     )}

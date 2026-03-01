@@ -197,7 +197,12 @@ function SignaturePage() {
                         {bloque.tipo === 'imagen' && datos[bloque.variable] && (
                             <div className="image-block">
                                 <p><strong>{bloque.etiqueta || 'Imagen'}:</strong></p>
-                                <img src={datos[bloque.variable]} alt={bloque.etiqueta} />
+                                {(Array.isArray(datos[bloque.variable])
+                                    ? datos[bloque.variable]
+                                    : [datos[bloque.variable]]
+                                ).map((imgUrl, idx) => (
+                                    <img key={idx} src={imgUrl} alt={`${bloque.etiqueta || 'Imagen'} ${idx + 1}`} style={{ marginBottom: '8px' }} />
+                                ))}
                             </div>
                         )}
                     </div>

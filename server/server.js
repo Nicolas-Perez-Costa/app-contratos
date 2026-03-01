@@ -10,6 +10,8 @@ const { pool, initDB } = require('./db/pool');
 const authRoutes = require('./routes/auth');
 const contratosRoutes = require('./routes/contratos');
 const plantillasRoutes = require('./routes/plantillas');
+const uploadsRoutes = require('./routes/uploads');
+const suscripcionesRoutes = require('./routes/suscripciones');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -79,6 +81,8 @@ app.use(session({
 app.use('/api/auth', authRoutes);
 app.use('/api/contratos', contratosRoutes);
 app.use('/api/plantillas', plantillasRoutes);
+app.use('/api/uploads', uploadsRoutes);
+app.use('/api/suscripciones', suscripcionesRoutes);
 
 // ── Health check ────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
