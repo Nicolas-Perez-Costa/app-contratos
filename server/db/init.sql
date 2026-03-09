@@ -40,10 +40,6 @@ ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS trial_hasta TIMESTAMP;
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS notas_admin TEXT;
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS baja_motivo VARCHAR(255);
 
--- Columnas adicionales para contratos (Tarea 2: teléfono como identificador)
-ALTER TABLE contratos ADD COLUMN IF NOT EXISTS cliente_numero VARCHAR(30);
-ALTER TABLE contratos ADD COLUMN IF NOT EXISTS cliente_nombre VARCHAR(255);
-
 -- Actualizar constraint de plan_actual para incluir 'Empresa'
 DO $$
 BEGIN
@@ -85,6 +81,10 @@ CREATE TABLE IF NOT EXISTS contratos (
   email_cliente    VARCHAR(255),
   pdf_url          TEXT
 );
+
+-- Columnas adicionales para contratos (Tarea 2: teléfono como identificador)
+ALTER TABLE contratos ADD COLUMN IF NOT EXISTS cliente_numero VARCHAR(30);
+ALTER TABLE contratos ADD COLUMN IF NOT EXISTS cliente_nombre VARCHAR(255);
 
 -- =============================================
 -- Pagos (Auditoría de pagos MercadoPago)

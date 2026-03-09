@@ -1,6 +1,9 @@
 const express = require('express');
 const { pool } = require('../db/pool');
 const { requireAuth } = require('../middleware/authMiddleware');
+const { generarPDFContrato } = require('../services/pdfService');
+const storageService = require('../services/storageService');
+const path = require('path');
 
 const router = express.Router();
 
@@ -228,7 +231,7 @@ router.post('/:id/firmar', async (req, res) => {
                 email_cliente = $4
             WHERE id_contrato = $5`,
             [
-                firma_base64.substring(0, 100) + '...',
+                firma_base64,
                 numeroLimpio,
                 cliente_nombre || null,
                 email_cliente || null,
@@ -236,10 +239,78 @@ router.post('/:id/firmar', async (req, res) => {
             ]
         );
 
-        // TODO: Generar PDF con pdfkit (diseño completo: encabezado, datos visita, bloques, firma, pie)
-        // TODO: Subir PDF a storage y guardar pdf_url en el contrato
-        // TODO: Enviar email al cliente (si tiene email) y al dueño de empresa (B3/B4)
-        // TODO: Enviar PDF por WhatsApp via Twilio al cliente_numero (Tarea 3)
+        // ── Generar PDF con firma embebida ──
+        const bloques = contrato.estructura_bloques || [];
+        let datos = {};
+        try {
+            datos = typeof contrato.datos_ingresados === 'string'
+                ? JSON.parse(contrato.datos_ingresados)
+                : (contrato.datos_ingresados || {});
+        } catch (e) { datos = {}; }
+
+        // Obtener datos de empresa del usuario
+        const userInfo = await pool.query(
+            'SELECT nombre_empresa, logo_url FROM usuarios WHERE id_usuario = $1',
+            [req.session.userId]
+        );
+        const empresa = userInfo.rows[0] || {};
+
+        let pdfUrl = null;
+        try {
+            const pdfBuffer = await generarPDFContrato({
+                contrato: { ...contrato, estado: 'Firmado', cliente_numero: numeroLimpio, cliente_nombre: cliente_nombre || null, email_cliente: email_cliente || null },
+                bloques,
+                datos,
+                firmaBase64: firma_base64,
+                nombreEmpresa: empresa.nombre_empresa,
+                logoUrl: empresa.logo_url,
+            });
+
+            const pdfKey = `contratos/contrato_${contrato.id_contrato}_${Date.now()}.pdf`;
+            pdfUrl = await storageService.uploadFile(pdfBuffer, pdfKey);
+
+            await pool.query(
+                'UPDATE contratos SET pdf_url = $1 WHERE id_contrato = $2',
+                [pdfUrl, contrato.id_contrato]
+            );
+        } catch (pdfErr) {
+            console.error('Error generando/subiendo PDF:', pdfErr.message);
+            // No fallar la firma por error de PDF
+        }
+
+        // ── Enviar email con PDF adjunto (no bloqueante) ──
+        if (email_cliente && pdfUrl) {
+            const transporter = req.app.locals.emailTransporter;
+            if (transporter) {
+                const fs = require('fs');
+                const pdfPath = path.join(__dirname, '..', pdfUrl);
+                transporter.sendMail({
+                    from: `"${empresa.nombre_empresa || 'Gestión de Contratos'}" <noreply@contratos.com>`,
+                    to: email_cliente,
+                    subject: `Contrato firmado: ${contrato.titulo_contrato}`,
+                    html: `<p>Hola ${cliente_nombre || ''},</p><p>Adjuntamos el contrato firmado.</p><p>Saludos,<br>${empresa.nombre_empresa || 'Gestión de Contratos'}</p>`,
+                    attachments: fs.existsSync(pdfPath) ? [{ filename: `contrato_${contrato.id_contrato}.pdf`, path: pdfPath }] : [],
+                }).catch(emailErr => console.error('Error enviando email post-firma:', emailErr.message));
+            }
+        }
+
+        // ── Enviar WhatsApp con PDF (no bloqueante) ──
+        if (numeroLimpio && pdfUrl) {
+            try {
+                const { enviarPDFporWhatsApp, isTwilioConfigured } = require('../services/whatsappService');
+                if (isTwilioConfigured()) {
+                    const appUrl = process.env.APP_URL || 'http://localhost:4000';
+                    enviarPDFporWhatsApp({
+                        numeroCliente: numeroLimpio,
+                        nombreCliente: cliente_nombre || 'Cliente',
+                        pdfUrl: `${appUrl}${pdfUrl}`,
+                        nombreEmpresa: empresa.nombre_empresa || 'Gestión de Contratos',
+                    }).catch(waErr => console.error('Error enviando WhatsApp:', waErr.message));
+                }
+            } catch (waLoadErr) {
+                console.warn('WhatsApp service no disponible:', waLoadErr.message);
+            }
+        }
 
         res.json({
             message: 'Contrato firmado exitosamente.',
