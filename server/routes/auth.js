@@ -1,20 +1,14 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { pool } = require('../db/pool');
+const { validateBody } = require('../middleware/validate');
+const { registerSchema, loginSchema, passwordChangeSchema } = require('../validators/auth');
 
 const router = express.Router();
 
 // ── POST /api/auth/register ─────────────────────────────────
-router.post('/register', async (req, res) => {
+router.post('/register', validateBody(registerSchema), async (req, res) => {
     const { email, contrasena } = req.body;
-
-    if (!email || !contrasena) {
-        return res.status(400).json({ error: 'Email y contraseña son obligatorios.' });
-    }
-
-    if (contrasena.length < 6) {
-        return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres.' });
-    }
 
     try {
         // Verificar si el email ya existe
@@ -52,12 +46,8 @@ router.post('/register', async (req, res) => {
 });
 
 // ── POST /api/auth/login ────────────────────────────────────
-router.post('/login', async (req, res) => {
+router.post('/login', validateBody(loginSchema), async (req, res) => {
     const { email, contrasena } = req.body;
-
-    if (!email || !contrasena) {
-        return res.status(400).json({ error: 'Email y contraseña son obligatorios.' });
-    }
 
     try {
         const result = await pool.query('SELECT * FROM usuarios WHERE email = $1', [email]);
@@ -131,20 +121,12 @@ router.get('/me', async (req, res) => {
 });
 
 // ── PUT /api/auth/password ──────────────────────────────────
-router.put('/password', async (req, res) => {
+router.put('/password', validateBody(passwordChangeSchema), async (req, res) => {
     if (!req.session.userId) {
         return res.status(401).json({ error: 'No autenticado.' });
     }
 
     const { contrasena_actual, contrasena_nueva } = req.body;
-
-    if (!contrasena_actual || !contrasena_nueva) {
-        return res.status(400).json({ error: 'Ambas contraseñas son obligatorias.' });
-    }
-
-    if (contrasena_nueva.length < 6) {
-        return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 6 caracteres.' });
-    }
 
     try {
         const result = await pool.query('SELECT contrasena_hash FROM usuarios WHERE id_usuario = $1', [req.session.userId]);
