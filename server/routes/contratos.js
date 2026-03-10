@@ -4,6 +4,8 @@ const { requireAuth } = require('../middleware/authMiddleware');
 const { generarPDFContrato } = require('../services/pdfService');
 const storageService = require('../services/storageService');
 const path = require('path');
+const { validateBody, validateParams, validateQuery } = require('../middleware/validate');
+const { crearContratoSchema, actualizarContratoSchema, firmarContratoSchema, idContratoParamSchema, paginacionQuerySchema, pdfQuerySchema } = require('../validators/contratos');
 
 const router = express.Router();
 
@@ -12,9 +14,9 @@ router.use(requireAuth);
 
 // ── GET /api/contratos ──────────────────────────────────────
 // Paginación para scroll infinito
-router.get('/', async (req, res) => {
-    const { page = 1, limit = 20 } = req.query;
-    const offset = (parseInt(page) - 1) * parseInt(limit);
+router.get('/', validateQuery(paginacionQuerySchema), async (req, res) => {
+    const { page, limit } = req.query;
+    const offset = (page - 1) * limit;
 
     try {
         const result = await pool.query(
@@ -24,7 +26,7 @@ router.get('/', async (req, res) => {
        WHERE c.id_usuario = $1
        ORDER BY c.fecha_creacion DESC
        LIMIT $2 OFFSET $3`,
-            [req.session.userId, parseInt(limit), offset]
+            [req.session.userId, limit, offset]
         );
 
         const countResult = await pool.query(
@@ -37,8 +39,8 @@ router.get('/', async (req, res) => {
         res.json({
             contratos: result.rows,
             total,
-            page: parseInt(page),
-            totalPages: Math.ceil(total / parseInt(limit)),
+            page,
+            totalPages: Math.ceil(total / limit),
             hasMore: offset + result.rows.length < total,
         });
     } catch (err) {
@@ -48,12 +50,8 @@ router.get('/', async (req, res) => {
 });
 
 // ── POST /api/contratos ─────────────────────────────────────
-router.post('/', async (req, res) => {
+router.post('/', validateBody(crearContratoSchema), async (req, res) => {
     const { id_plantilla, titulo_contrato, datos_ingresados, email_cliente } = req.body;
-
-    if (!titulo_contrato) {
-        return res.status(400).json({ error: 'El título del contrato es obligatorio.' });
-    }
 
     try {
         // Verificar límite freemium
@@ -102,7 +100,7 @@ router.post('/', async (req, res) => {
 });
 
 // ── GET /api/contratos/:id ──────────────────────────────────
-router.get('/:id', async (req, res) => {
+router.get('/:id', validateParams(idContratoParamSchema), async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT c.*, p.nombre_plantilla, p.estructura_bloques
@@ -124,7 +122,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // ── PUT /api/contratos/:id ──────────────────────────────────
-router.put('/:id', async (req, res) => {
+router.put('/:id', validateParams(idContratoParamSchema), validateBody(actualizarContratoSchema), async (req, res) => {
     const { titulo_contrato, datos_ingresados, email_cliente } = req.body;
 
     try {
@@ -160,7 +158,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // ── DELETE /api/contratos/:id ───────────────────────────────
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', validateParams(idContratoParamSchema), async (req, res) => {
     try {
         const result = await pool.query(
             'DELETE FROM contratos WHERE id_contrato = $1 AND id_usuario = $2 RETURNING id_contrato',
@@ -179,27 +177,11 @@ router.delete('/:id', async (req, res) => {
 });
 
 // ── POST /api/contratos/:id/firmar ──────────────────────────
-router.post('/:id/firmar', async (req, res) => {
+router.post('/:id/firmar', validateParams(idContratoParamSchema), validateBody(firmarContratoSchema), async (req, res) => {
     const { firma_base64, cliente_numero, cliente_nombre, email_cliente } = req.body;
 
-    // Validación: firma es obligatoria
-    if (!firma_base64) {
-        return res.status(400).json({ error: 'La firma es obligatoria.' });
-    }
-
-    // Al menos un dato de contacto es obligatorio
-    if (!cliente_numero && !email_cliente) {
-        return res.status(400).json({ error: 'Debe ingresar al menos un dato de contacto (teléfono o email).' });
-    }
-
-    // Validar formato del número si fue proporcionado (8-15 dígitos)
-    let numeroLimpio = null;
-    if (cliente_numero) {
-        numeroLimpio = cliente_numero.replace(/[\s\-\+\(\)]/g, '');
-        if (!/^\d{8,15}$/.test(numeroLimpio)) {
-            return res.status(400).json({ error: 'Número de teléfono inválido. Debe tener entre 8 y 15 dígitos.' });
-        }
-    }
+    // Número ya validado por Zod (8-15 dígitos)
+    const numeroLimpio = cliente_numero || null;
 
     try {
         // Obtener contrato con datos de plantilla
@@ -324,8 +306,8 @@ router.post('/:id/firmar', async (req, res) => {
 
 // ── GET /api/contratos/:id/pdf ──────────────────────────────
 // Genera PDF on-demand. Query: ?modo=preview (inline) | ?modo=download (attachment)
-router.get('/:id/pdf', async (req, res) => {
-    const modo = req.query.modo || 'preview'; // 'preview' o 'download'
+router.get('/:id/pdf', validateParams(idContratoParamSchema), validateQuery(pdfQuerySchema), async (req, res) => {
+    const { modo } = req.query;
     const PDFDocument = require('pdfkit');
     const fs = require('fs');
     const path = require('path');

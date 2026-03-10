@@ -1,6 +1,8 @@
 const express = require('express');
 const { pool } = require('../db/pool');
 const { requireAuth } = require('../middleware/authMiddleware');
+const { validateBody, validateParams } = require('../middleware/validate');
+const { crearPlantillaSchema, actualizarPlantillaSchema, idPlantillaParamSchema } = require('../validators/plantillas');
 
 const router = express.Router();
 
@@ -21,7 +23,7 @@ router.get('/', async (req, res) => {
 });
 
 // ── GET /api/plantillas/:id ─────────────────────────────────
-router.get('/:id', async (req, res) => {
+router.get('/:id', validateParams(idPlantillaParamSchema), async (req, res) => {
     try {
         const result = await pool.query(
             'SELECT * FROM plantillas WHERE id_plantilla = $1 AND id_usuario = $2',
@@ -40,12 +42,8 @@ router.get('/:id', async (req, res) => {
 });
 
 // ── POST /api/plantillas ────────────────────────────────────
-router.post('/', async (req, res) => {
+router.post('/', validateBody(crearPlantillaSchema), async (req, res) => {
     const { nombre_plantilla, estructura_bloques } = req.body;
-
-    if (!nombre_plantilla) {
-        return res.status(400).json({ error: 'El nombre de la plantilla es obligatorio.' });
-    }
 
     try {
         // B2: Validación de límite de plantillas con COUNT real
@@ -98,7 +96,7 @@ router.post('/', async (req, res) => {
 });
 
 // ── PUT /api/plantillas/:id ─────────────────────────────────
-router.put('/:id', async (req, res) => {
+router.put('/:id', validateParams(idPlantillaParamSchema), validateBody(actualizarPlantillaSchema), async (req, res) => {
     const { nombre_plantilla, estructura_bloques } = req.body;
 
     try {
@@ -123,7 +121,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // ── DELETE /api/plantillas/:id ──────────────────────────────
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', validateParams(idPlantillaParamSchema), async (req, res) => {
     try {
         const result = await pool.query(
             'DELETE FROM plantillas WHERE id_plantilla = $1 AND id_usuario = $2 RETURNING id_plantilla',
