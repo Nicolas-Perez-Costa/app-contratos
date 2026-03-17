@@ -3,8 +3,11 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 
+const isNeon = (process.env.DATABASE_URL || '').includes('neon.tech');
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  ssl: isNeon ? { rejectUnauthorized: false } : false,
 });
 
 /**
