@@ -476,12 +476,12 @@ router.get('/:id/pdf', validateParams(idContratoParamSchema), validateQuery(pdfQ
                 const base64Data = contrato.firma_digital.replace(/^data:image\/\w+;base64,/, '');
                 const firmaBuffer = Buffer.from(base64Data, 'base64');
                 
-                doc.image(firmaBuffer, doc.x, doc.y, {
+                doc.image(firmaBuffer, {
                     width: 400,
                     height: 150,
                     fit: [400, 150],
                 });
-                doc.moveDown(6); // Espacio suficiente debajo de la imagen
+                doc.moveDown(1); // Espacio suficiente debajo de la imagen
             } catch (err) {
                 logger.error('Error procesando imagen de firma para PDF: ' + err.message, { error: err });
                 doc.fontSize(10).font('Helvetica').text('[Error al mostrar la firma]');
@@ -498,6 +498,11 @@ router.get('/:id/pdf', validateParams(idContratoParamSchema), validateQuery(pdfQ
         for (let i = range.start; i < range.start + range.count; i++) {
             doc.switchToPage(i);
             doc.fontSize(8).font('Helvetica').fillColor('#999999');
+            
+            // Desactivar temporalmente el margen inferior
+            const originalBottomMargin = doc.page.margins.bottom;
+            doc.page.margins.bottom = 0;
+
             doc.text(
                 'Documento generado digitalmente. Este contrato tiene validez como registro de la visita técnica realizada.',
                 50, 780, { align: 'center', width: 495 }
@@ -506,6 +511,9 @@ router.get('/:id/pdf', validateParams(idContratoParamSchema), validateQuery(pdfQ
                 `Página ${i + 1} de ${range.count}`,
                 50, 792, { align: 'center', width: 495 }
             );
+            
+            // Restaurar el margen inferior
+            doc.page.margins.bottom = originalBottomMargin;
         }
 
         doc.end();

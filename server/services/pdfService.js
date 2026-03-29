@@ -197,12 +197,12 @@ function _renderFirma(doc, firmaBase64, contrato) {
         const firmaBuffer = Buffer.from(base64Data, 'base64');
 
         // Insertar la imagen de la firma real en el PDF
-        doc.image(firmaBuffer, doc.x, doc.y, {
+        doc.image(firmaBuffer, {
             width: 400,
             height: 150,
             fit: [400, 150],
         });
-        doc.moveDown(5); // Espacio después de la imagen
+        doc.moveDown(1); // Espacio después de la imagen
 
         // Nombre del firmante debajo de la firma
         if (contrato.cliente_nombre) {
@@ -235,6 +235,11 @@ function _renderPiesPagina(doc, nombreEmpresa) {
         doc.switchToPage(i);
         doc.fontSize(7).font('Helvetica').fillColor('#AAAAAA');
         const empresa = nombreEmpresa || 'Gestión de Contratos';
+
+        // Desactivar temporalmente el margen inferior para evitar saltos de página automáticos
+        const originalBottomMargin = doc.page.margins.bottom;
+        doc.page.margins.bottom = 0;
+
         doc.text(
             `Documento generado digitalmente — ${empresa}`,
             50, 780, { align: 'center', width: 495 }
@@ -243,6 +248,9 @@ function _renderPiesPagina(doc, nombreEmpresa) {
             `Página ${i + 1} de ${totalPages}`,
             50, 790, { align: 'center', width: 495 }
         );
+
+        // Restaurar el margen inferior
+        doc.page.margins.bottom = originalBottomMargin;
     }
 }
 
