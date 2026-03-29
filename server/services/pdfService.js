@@ -2,6 +2,7 @@ const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
 const { sanitizeForPDF } = require('../utils/sanitize');
+const logger = require('../config/logger');
 
 /**
  * Genera un PDF completo para un contrato firmado o en borrador.
@@ -80,7 +81,7 @@ function _renderEncabezado(doc, { nombreEmpresa, logoUrl }) {
     if (logoUrl) {
         const logoPath = path.join(__dirname, '..', logoUrl);
         if (fs.existsSync(logoPath)) {
-            try { doc.image(logoPath, 50, doc.y, { width: 80 }); } catch (e) { console.warn('Logo no insertado:', e.message); }
+            try { doc.image(logoPath, 50, doc.y, { width: 80 }); } catch (e) { logger.warn('Logo no insertado: ' + e.message, { error: e }); }
         }
     }
     doc.fontSize(14).font('Helvetica-Bold').fillColor('#2D8A4E').text(titulo, { align: logoUrl ? 'right' : 'left' });
@@ -144,10 +145,10 @@ function _renderBloques(doc, bloques, datos) {
             } else if (bloque.tipo === 'imagen') {
                 _renderBloqueImagen(doc, bloque, datos);
             } else {
-                console.warn(`Tipo de bloque desconocido: ${bloque.tipo}, ignorando.`);
+                logger.warn(`Tipo de bloque desconocido: ${bloque.tipo}, ignorando.`);
             }
         } catch (bloqueErr) {
-            console.warn('Error renderizando bloque:', bloqueErr.message);
+            logger.warn('Error renderizando bloque: ' + bloqueErr.message, { error: bloqueErr });
         }
     });
 }
@@ -168,7 +169,7 @@ function _renderBloqueImagen(doc, bloque, datos) {
                 doc.moveDown(0.5);
             }
         } catch (imgErr) {
-            console.warn('Imagen no insertada en PDF:', imgErr.message);
+            logger.warn('Imagen no insertada en PDF: ' + imgErr.message, { error: imgErr });
         }
     });
     doc.moveDown(0.5);
@@ -197,9 +198,9 @@ function _renderFirma(doc, firmaBase64, contrato) {
 
         // Insertar la imagen de la firma real en el PDF
         doc.image(firmaBuffer, doc.x, doc.y, {
-            width: 220,
-            height: 80,
-            fit: [220, 80],
+            width: 400,
+            height: 150,
+            fit: [400, 150],
         });
         doc.moveDown(5); // Espacio después de la imagen
 
@@ -218,10 +219,10 @@ function _renderFirma(doc, firmaBase64, contrato) {
             minute: '2-digit',
         });
         doc.fontSize(9).font('Helvetica').fillColor('#666666')
-           .text(`Firmado digitalmente el ${fechaFirma}`);
+            .text(`Firmado digitalmente el ${fechaFirma}`);
 
     } catch (firmaErr) {
-        console.error('Error insertando firma en PDF:', firmaErr.message);
+        logger.error('Error insertando firma en PDF: ' + firmaErr.message, { error: firmaErr });
         doc.fontSize(10).font('Helvetica').fillColor('#CC0000')
            .text('[Error al procesar la imagen de firma]');
     }

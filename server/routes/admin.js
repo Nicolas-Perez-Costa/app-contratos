@@ -4,6 +4,7 @@ const { requireAuth } = require('../middleware/authMiddleware');
 const { requireAdmin } = require('../middleware/requireAdmin');
 const { validateBody, validateParams, validateQuery } = require('../middleware/validate');
 const { queryUsuariosSchema, idUsuarioParamSchema, trialSchema, cambiarPlanSchema, notaSchema } = require('../validators/admin');
+const logger = require('../config/logger');
 
 const router = express.Router();
 
@@ -100,7 +101,7 @@ router.get('/usuarios', validateQuery(queryUsuariosSchema), async (req, res) => 
             paginas_totales: Math.ceil(total / limit)
         });
     } catch (err) {
-        console.error('Error en GET /admin/usuarios:', err);
+        logger.error('Error en GET /admin/usuarios: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error interno del servidor.' });
     }
 });
@@ -193,7 +194,7 @@ router.get('/usuarios/:id', validateParams(idUsuarioParamSchema), async (req, re
             }))
         });
     } catch (err) {
-        console.error('Error en GET /admin/usuarios/:id:', err);
+        logger.error('Error en GET /admin/usuarios/:id: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error interno del servidor.' });
     }
 });
@@ -232,14 +233,14 @@ router.post('/usuarios/:id/trial', validateParams(idUsuarioParamSchema), validat
             [notaTexto, id]
         );
 
-        console.log(`[ADMIN] Usuario ${req.session.userId} activó trial de ${dias} días para ${id}`);
+        logger.info(`[ADMIN] Usuario ${req.session.userId} activó trial de ${dias} días para ${id}`);
 
         res.json({
             success: true,
             trial_hasta: trialResult.rows[0].trial_hasta
         });
     } catch (err) {
-        console.error('Error en POST /admin/usuarios/:id/trial:', err);
+        logger.error('Error en POST /admin/usuarios/:id/trial: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error interno del servidor.' });
     }
 });
@@ -297,7 +298,7 @@ router.post('/usuarios/:id/cambiar-plan', validateParams(idUsuarioParamSchema), 
             [notaTexto, id]
         );
 
-        console.log(`[ADMIN] Usuario ${req.session.userId} cambió plan de ${id} a ${planDb} (${estado})`);
+        logger.info(`[ADMIN] Usuario ${req.session.userId} cambió plan de ${id} a ${planDb} (${estado})`);
 
         // Enviar email si se solicita
         if (notificar_usuario) {
@@ -319,17 +320,17 @@ router.post('/usuarios/:id/cambiar-plan', validateParams(idUsuarioParamSchema), 
                             <p>Saludos,<br>Equipo de Gestión de Contratos</p>
                         `
                     });
-                    console.log(`[ADMIN] Email de cambio de plan enviado a ${usuario.email}`);
+                    logger.info(`[ADMIN] Email de cambio de plan enviado a ${usuario.email}`);
                 }
             } catch (emailErr) {
-                console.error('Error al enviar email de cambio de plan:', emailErr);
+                logger.error('Error al enviar email de cambio de plan: ' + emailErr.message, { error: emailErr });
                 // No fallar la request por error de email
             }
         }
 
         res.json({ success: true, plan: planDb, plan_estado: estado });
     } catch (err) {
-        console.error('Error en POST /admin/usuarios/:id/cambiar-plan:', err);
+        logger.error('Error en POST /admin/usuarios/:id/cambiar-plan: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error interno del servidor.' });
     }
 });
@@ -357,14 +358,14 @@ router.post('/usuarios/:id/nota', validateParams(idUsuarioParamSchema), validate
             return res.status(404).json({ error: 'Usuario no encontrado.' });
         }
 
-        console.log(`[ADMIN] Usuario ${req.session.userId} agregó nota a ${id}`);
+        logger.info(`[ADMIN] Usuario ${req.session.userId} agregó nota a ${id}`);
 
         res.json({
             success: true,
             notas_admin: result.rows[0].notas_admin
         });
     } catch (err) {
-        console.error('Error en POST /admin/usuarios/:id/nota:', err);
+        logger.error('Error en POST /admin/usuarios/:id/nota: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error interno del servidor.' });
     }
 });
@@ -429,7 +430,7 @@ router.get('/estadisticas', async (req, res) => {
             }
         });
     } catch (err) {
-        console.error('Error en GET /admin/estadisticas:', err);
+        logger.error('Error en GET /admin/estadisticas: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error interno del servidor.' });
     }
 });

@@ -7,6 +7,7 @@ const path = require('path');
 const { validateBody, validateParams, validateQuery } = require('../middleware/validate');
 const { crearContratoSchema, actualizarContratoSchema, firmarContratoSchema, idContratoParamSchema, paginacionQuerySchema, pdfQuerySchema } = require('../validators/contratos');
 const { sanitizeObject } = require('../utils/sanitize');
+const logger = require('../config/logger');
 
 const router = express.Router();
 
@@ -49,7 +50,7 @@ router.get('/', validateQuery(paginacionQuerySchema), async (req, res) => {
             hasMore: offset + result.rows.length < total,
         });
     } catch (err) {
-        console.error('Error en GET /contratos:', err);
+        logger.error('Error en GET /contratos: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error interno del servidor.' });
     }
 });
@@ -110,7 +111,7 @@ router.post('/', validateBody(crearContratoSchema), async (req, res) => {
 
         res.status(201).json({ contrato: result.rows[0] });
     } catch (err) {
-        console.error('Error en POST /contratos:', err);
+        logger.error('Error en POST /contratos: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error interno del servidor.' });
     }
 });
@@ -139,7 +140,7 @@ router.get('/:id', validateParams(idContratoParamSchema), async (req, res) => {
             },
         });
     } catch (err) {
-        console.error('Error en GET /contratos/:id:', err);
+        logger.error('Error en GET /contratos/:id: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error interno del servidor.' });
     }
 });
@@ -175,7 +176,7 @@ router.put('/:id', validateParams(idContratoParamSchema), validateBody(actualiza
 
         res.json({ contrato: result.rows[0] });
     } catch (err) {
-        console.error('Error en PUT /contratos/:id:', err);
+        logger.error('Error en PUT /contratos/:id: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error interno del servidor.' });
     }
 });
@@ -194,7 +195,7 @@ router.delete('/:id', validateParams(idContratoParamSchema), async (req, res) =>
 
         res.json({ message: 'Contrato eliminado exitosamente.' });
     } catch (err) {
-        console.error('Error en DELETE /contratos/:id:', err);
+        logger.error('Error en DELETE /contratos/:id: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error interno del servidor.' });
     }
 });
@@ -279,7 +280,7 @@ router.post('/:id/firmar', validateParams(idContratoParamSchema), validateBody(f
                 [pdfUrl, contrato.id_contrato]
             );
         } catch (pdfErr) {
-            console.error('Error generando/subiendo PDF:', pdfErr.message);
+            logger.error('Error generando/subiendo PDF: ' + pdfErr.message, { error: pdfErr });
             // No fallar la firma por error de PDF
         }
 
@@ -295,7 +296,7 @@ router.post('/:id/firmar', validateParams(idContratoParamSchema), validateBody(f
                     subject: `Contrato firmado: ${contrato.titulo_contrato}`,
                     html: `<p>Hola ${cliente_nombre || ''},</p><p>Adjuntamos el contrato firmado.</p><p>Saludos,<br>${empresa.nombre_empresa || 'Gestión de Contratos'}</p>`,
                     attachments: fs.existsSync(pdfPath) ? [{ filename: `contrato_${contrato.id_contrato}.pdf`, path: pdfPath }] : [],
-                }).catch(emailErr => console.error('Error enviando email post-firma:', emailErr.message));
+                }).catch(emailErr => logger.error('Error enviando email post-firma: ' + emailErr.message, { error: emailErr }));
             }
         }
 
@@ -310,10 +311,10 @@ router.post('/:id/firmar', validateParams(idContratoParamSchema), validateBody(f
                         nombreCliente: cliente_nombre || 'Cliente',
                         pdfUrl: `${appUrl}${pdfUrl}`,
                         nombreEmpresa: empresa.nombre_empresa || 'Gestión de Contratos',
-                    }).catch(waErr => console.error('Error enviando WhatsApp:', waErr.message));
+                    }).catch(waErr => logger.error('Error enviando WhatsApp: ' + waErr.message, { error: waErr }));
                 }
             } catch (waLoadErr) {
-                console.warn('WhatsApp service no disponible:', waLoadErr.message);
+                logger.warn('WhatsApp service no disponible: ' + waLoadErr.message, { error: waLoadErr });
             }
         }
 
@@ -322,7 +323,7 @@ router.post('/:id/firmar', validateParams(idContratoParamSchema), validateBody(f
             contrato_id: contrato.id_contrato,
         });
     } catch (err) {
-        console.error('Error en POST /contratos/:id/firmar:', err);
+        logger.error('Error en POST /contratos/:id/firmar: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error interno del servidor.' });
     }
 });
@@ -361,7 +362,7 @@ router.get('/:id/pdf', validateParams(idContratoParamSchema), validateQuery(pdfQ
                 ? JSON.parse(contrato.datos_ingresados)
                 : (contrato.datos_ingresados || {});
         } catch (parseErr) {
-            console.warn('Error parseando datos_ingresados, usando objeto vacío:', parseErr.message);
+            logger.warn('Error parseando datos_ingresados, usando objeto vacío: ' + parseErr.message, { error: parseErr });
             datos = {};
         }
 
@@ -370,7 +371,7 @@ router.get('/:id/pdf', validateParams(idContratoParamSchema), validateQuery(pdfQ
 
         // Manejar errores del stream PDF
         doc.on('error', (pdfErr) => {
-            console.error('Error en stream PDFKit:', pdfErr);
+            logger.error('Error en stream PDFKit: ' + pdfErr.message, { error: pdfErr });
             if (!res.writableEnded) {
                 res.end();
             }
@@ -450,14 +451,14 @@ router.get('/:id/pdf', validateParams(idContratoParamSchema), validateQuery(pdfQ
                                     doc.moveDown(0.5);
                                 }
                             } catch (imgErr) {
-                                console.warn('No se pudo insertar imagen en PDF:', imgErr.message);
+                                logger.warn('No se pudo insertar imagen en PDF: ' + imgErr.message, { error: imgErr });
                             }
                         });
                         doc.moveDown(0.5);
                     }
                 }
             } catch (bloqueErr) {
-                console.warn('Error renderizando bloque en PDF:', bloqueErr.message);
+                logger.warn('Error renderizando bloque en PDF: ' + bloqueErr.message, { error: bloqueErr });
                 doc.fontSize(10).font('Helvetica').fillColor('#cc0000')
                     .text('[Error al renderizar este bloque]')
                     .fillColor('#000000');
@@ -466,17 +467,29 @@ router.get('/:id/pdf', validateParams(idContratoParamSchema), validateQuery(pdfQ
         });
 
         // ── Firma (si fue firmado) ──
-        if (contrato.estado === 'Firmado' && contrato.firma_digital) {
+        if (contrato.estado === 'Firmado' && contrato.firma_digital && contrato.firma_digital.length > 100) {
             doc.moveDown(2);
             doc.fontSize(12).font('Helvetica-Bold').text('Firma del cliente:', { align: 'left' });
             doc.moveDown(0.5);
 
-            // firma_digital guardada como los primeros 100 chars + '...'
-            // Para la firma real necesitamos el base64 completo — por ahora mostramos un placeholder
-            doc.fontSize(10).font('Helvetica').text('[Firma digital registrada]');
-            doc.moveDown();
+            try {
+                const base64Data = contrato.firma_digital.replace(/^data:image\/\w+;base64,/, '');
+                const firmaBuffer = Buffer.from(base64Data, 'base64');
+                
+                doc.image(firmaBuffer, doc.x, doc.y, {
+                    width: 400,
+                    height: 150,
+                    fit: [400, 150],
+                });
+                doc.moveDown(6); // Espacio suficiente debajo de la imagen
+            } catch (err) {
+                logger.error('Error procesando imagen de firma para PDF: ' + err.message, { error: err });
+                doc.fontSize(10).font('Helvetica').text('[Error al mostrar la firma]');
+                doc.moveDown(1.5);
+            }
+
             doc.fontSize(10).font('Helvetica').text(
-                `Fecha de firma: ${contrato.fecha_firma ? new Date(contrato.fecha_firma).toLocaleDateString('es-ES') : 'Registrada'}`
+                `Fecha de firma: ${contrato.fecha_creacion ? new Date(contrato.fecha_creacion).toLocaleDateString('es-ES') : 'Registrada'}`
             );
         }
 
@@ -497,7 +510,7 @@ router.get('/:id/pdf', validateParams(idContratoParamSchema), validateQuery(pdfQ
 
         doc.end();
     } catch (err) {
-        console.error('Error en GET /contratos/:id/pdf:', err);
+        logger.error('Error en GET /contratos/:id/pdf: ' + err.message, { error: err });
         // Solo enviar JSON de error si los headers de PDF no fueron enviados aún
         if (!headersSent) {
             return res.status(500).json({ error: 'Error generando PDF.' });

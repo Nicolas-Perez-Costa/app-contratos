@@ -1,5 +1,6 @@
 const cron = require('node-cron');
 const { pool } = require('../db/pool');
+const logger = require('../config/logger');
 
 // ── Verificar trials vencidos cada hora ─────────────────────
 // Baja a plan Gratuito a usuarios cuyo trial venció
@@ -18,12 +19,12 @@ cron.schedule('0 * * * *', async () => {
         `);
 
         if (result.rows.length > 0) {
-            console.log(`[CRON] Trials vencidos: ${result.rows.length} usuario(s) bajados a Gratuito:`);
-            result.rows.forEach(u => console.log(`   - ${u.email} (${u.id_usuario})`));
+            logger.info(`[CRON] Trials vencidos: ${result.rows.length} usuario(s) bajados a Gratuito:`);
+            result.rows.forEach(u => logger.info(`   - ${u.email} (${u.id_usuario})`));
         }
     } catch (err) {
-        console.error('[CRON] Error al verificar trials vencidos:', err);
+        logger.error('[CRON] Error al verificar trials vencidos: ' + err.message, { error: err });
     }
 });
 
-console.log('⏰ Cron de verificación de trials activo (cada hora)');
+logger.info('⏰ Cron de verificación de trials activo (cada hora)');

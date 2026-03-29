@@ -4,6 +4,7 @@ const { pool } = require('../db/pool');
 const { requireAuth } = require('../middleware/authMiddleware');
 const { validateBody } = require('../middleware/validate');
 const { crearSuscripcionSchema, webhookSchema } = require('../validators/suscripciones');
+const logger = require('../config/logger');
 
 const router = express.Router();
 
@@ -96,7 +97,7 @@ router.post('/crear', requireAuth, validateBody(crearSuscripcionSchema), async (
             preapproval_id: result.id,
         });
     } catch (err) {
-        console.error('Error al crear suscripción MP:', err);
+        logger.error('Error al crear suscripción MP: ' + err.message, { error: err });
         res.status(500).json({
             error: 'Error al crear la suscripción.',
             detalle: err.message,
@@ -114,15 +115,15 @@ router.post('/webhook', validateBody(webhookSchema), async (req, res) => {
         const { type, data } = req.body;
 
         if (!type || !data?.id) {
-            console.log('Webhook MP: notificación sin type o data.id, ignorando.');
+            logger.info('Webhook MP: notificación sin type o data.id, ignorando.');
             return;
         }
 
-        console.log(`📩 Webhook MP recibido: type=${type}, id=${data.id}`);
+        logger.info(`📩 Webhook MP recibido: type=${type}, id=${data.id}`);
 
         const mpClient = getMPClient();
         if (!mpClient) {
-            console.warn('Webhook MP: MP_ACCESS_TOKEN no configurado, no se puede procesar.');
+            logger.warn('Webhook MP: MP_ACCESS_TOKEN no configurado, no se puede procesar.');
             return;
         }
 
@@ -131,12 +132,12 @@ router.post('/webhook', validateBody(webhookSchema), async (req, res) => {
             const preApproval = new PreApproval(mpClient);
             const sub = await preApproval.get({ id: data.id });
 
-            console.log(`   Suscripción ${sub.id}: status=${sub.status}`);
+            logger.info(`   Suscripción ${sub.id}: status=${sub.status}`);
 
             // Extraer usuario y plan del external_reference
             const [userId, planKey] = (sub.external_reference || '').split('|');
             if (!userId || !planKey || !PLANES[planKey]) {
-                console.warn('   external_reference inválido:', sub.external_reference);
+                logger.warn('   external_reference inválido: ' + sub.external_reference);
                 return;
             }
 
@@ -176,14 +177,14 @@ router.post('/webhook', validateBody(webhookSchema), async (req, res) => {
                 [planActual, planEstado, sub.id, vencimiento.toISOString(), userId]
             );
 
-            console.log(`   ✅ Usuario ${userId} actualizado: plan=${planActual}, estado=${planEstado}`);
+            logger.info(`   ✅ Usuario ${userId} actualizado: plan=${planActual}, estado=${planEstado}`);
 
         } else if (type === 'payment') {
             // Un pago fue procesado
             const payment = new Payment(mpClient);
             const pago = await payment.get({ id: data.id });
 
-            console.log(`   Pago ${pago.id}: status=${pago.status}, monto=${pago.transaction_amount}`);
+            logger.info(`   Pago ${pago.id}: status=${pago.status}, monto=${pago.transaction_amount}`);
 
             // Buscar usuario por preapproval_id o external_reference
             let userId = null;
@@ -206,10 +207,10 @@ router.post('/webhook', validateBody(webhookSchema), async (req, res) => {
                 ]
             );
 
-            console.log(`   ✅ Pago registrado en tabla pagos.`);
+            logger.info(`   ✅ Pago registrado en tabla pagos.`);
         }
     } catch (err) {
-        console.error('Error procesando webhook MP:', err);
+        logger.error('Error procesando webhook MP: ' + err.message, { error: err });
     }
 });
 
@@ -240,7 +241,7 @@ router.get('/estado', requireAuth, async (req, res) => {
             })),
         });
     } catch (err) {
-        console.error('Error en GET /suscripciones/estado:', err);
+        logger.error('Error en GET /suscripciones/estado: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error interno del servidor.' });
     }
 });

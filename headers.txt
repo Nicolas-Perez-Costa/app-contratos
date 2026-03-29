@@ -1,0 +1,28 @@
+HTTP/1.1 200 OK
+Content-Security-Policy: default-src 'self';script-src 'self';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;connect-src 'self';font-src 'self';object-src blob:;frame-ancestors 'self';upgrade-insecure-requests;base-uri 'self';form-action 'self';script-src-attr 'none'
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Resource-Policy: same-origin
+Origin-Agent-Cluster: ?1
+Referrer-Policy: no-referrer
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+X-Content-Type-Options: nosniff
+X-DNS-Prefetch-Control: off
+X-Download-Options: noopen
+X-Frame-Options: SAMEORIGIN
+X-Permitted-Cross-Domain-Policies: none
+X-XSS-Protection: 0
+Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+Access-Control-Allow-Origin: http://localhost:5173
+Vary: Origin
+Access-Control-Allow-Credentials: true
+RateLimit-Policy: 200;w=60
+RateLimit-Limit: 200
+RateLimit-Remaining: 197
+RateLimit-Reset: 27
+Content-Type: application/json; charset=utf-8
+Content-Length: 54
+ETag: W/"36-qmfWMfiGQSAPhd3g2Dxk+5qn+C0"
+Date: Sun, 29 Mar 2026 13:03:01 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+

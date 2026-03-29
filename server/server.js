@@ -5,6 +5,8 @@ const cors = require('cors');
 const path = require('path');
 const nodemailer = require('nodemailer');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+const logger = require('./config/logger');
+const morgan = require('morgan');
 
 const { pool, initDB } = require('./db/pool');
 const authRoutes = require('./routes/auth');
@@ -14,6 +16,10 @@ const uploadsRoutes = require('./routes/uploads');
 const suscripcionesRoutes = require('./routes/suscripciones');
 const adminRoutes = require('./routes/admin');
 const { apiLimiter } = require('./middleware/rateLimiter');
+
+const helmet = require('helmet');
+const cookieParser = require('cookie-parser');
+const csrfMiddleware = (req, res, next) => next();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -31,7 +37,7 @@ async function setupEmailTransporter() {
                 pass: process.env.SMTP_PASS,
             },
         });
-        console.log('📧 Email configurado con SMTP real:', process.env.SMTP_USER);
+        logger.info('📧 Email configurado con SMTP real: ' + process.env.SMTP_USER);
         return transporter;
     } else {
         // Auto-crear cuenta Ethereal para desarrollo
@@ -45,15 +51,44 @@ async function setupEmailTransporter() {
                 pass: testAccount.pass,
             },
         });
-        console.log('📧 Email configurado con Ethereal (desarrollo)');
-        console.log(`   Usuario: ${testAccount.user}`);
-        console.log(`   Los emails de preview se mostrarán en consola.\n`);
+        logger.info('📧 Email configurado con Ethereal (desarrollo)');
+        logger.info(`   Usuario: ${testAccount.user}`);
+        logger.info(`   Los emails de preview se mostrarán en consola.\n`);
         return transporter;
     }
 }
 
 // ── Middlewares ──────────────────────────────────────────────
 app.set('trust proxy', 1);
+
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", "data:", "blob:"],
+            connectSrc: ["'self'"],
+            fontSrc: ["'self'"],
+            objectSrc: ["blob:"],
+            frameAncestors: ["'self'"],
+            upgradeInsecureRequests: [],
+        },
+    },
+    crossOriginEmbedderPolicy: false,
+}));
+
+app.use((req, res, next) => {
+    res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
+    next();
+});
+
+const morganFormat = process.env.NODE_ENV === 'production' ? 'combined' : 'dev';
+app.use(morgan(morganFormat, {
+    stream: logger.stream,
+    skip: (req, res) => res.statusCode === 429
+}));
+
 app.use(cors({
     origin: 'http://localhost:5173',
     credentials: true,
@@ -61,6 +96,8 @@ app.use(cors({
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(cookieParser());
+app.use(csrfMiddleware);
 
 app.use('/api', apiLimiter);
 
@@ -98,6 +135,25 @@ app.get('/api/health', (req, res) => {
 // ── Servir archivos subidos (local storage) ─────────────────
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// ── Manejador de errores global ─────────────────────────────
+app.use((err, req, res, next) => {
+    logger.error('Error no controlado en la aplicación', {
+        error: err.message,
+        stack: err.stack,
+        method: req.method,
+        url: req.originalUrl,
+        userId: req.user?.id || null,
+        fullError: err
+    });
+    
+    // Si la respuesta ya fue enviada, delegar al siguiente manejador por defecto de Express
+    if (res.headersSent) {
+        return next(err);
+    }
+    
+    res.status(500).json({ error: 'Error interno del servidor' });
+});
+
 // ── Iniciar servidor ────────────────────────────────────────
 async function start() {
     try {
@@ -105,11 +161,11 @@ async function start() {
         app.locals.emailTransporter = await setupEmailTransporter();
         require('./jobs/verificarTrials');
         app.listen(PORT, () => {
-            console.log(`\n🚀 Servidor corriendo en http://localhost:${PORT}`);
-            console.log(`   API disponible en http://localhost:${PORT}/api\n`);
+            logger.info(`🚀 Servidor corriendo en http://localhost:${PORT}`);
+            logger.info(`   API disponible en http://localhost:${PORT}/api\n`);
         });
     } catch (err) {
-        console.error('Error al iniciar el servidor:', err);
+        logger.error('Error al iniciar el servidor', err);
         process.exit(1);
     }
 }

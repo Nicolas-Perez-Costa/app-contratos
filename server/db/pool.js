@@ -2,6 +2,7 @@ const { Pool } = require('pg');
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
+const logger = require('../config/logger');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -19,9 +20,9 @@ async function initDB() {
 
   try {
     await pool.query(sql);
-    console.log('✅ Base de datos inicializada correctamente.');
+    logger.info('✅ Base de datos inicializada correctamente.');
   } catch (err) {
-    console.error('❌ Error al inicializar la base de datos:', err.message);
+    logger.error('❌ Error al inicializar la base de datos: ' + err.message, { error: err });
     throw err;
   }
 }

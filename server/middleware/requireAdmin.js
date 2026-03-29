@@ -1,4 +1,5 @@
 const { pool } = require('../db/pool');
+const logger = require('../config/logger');
 
 /**
  * Middleware que verifica que el usuario autenticado tenga rol 'admin'.
@@ -20,7 +21,7 @@ async function requireAdmin(req, res, next) {
 
         next();
     } catch (err) {
-        console.error('Error en requireAdmin:', err);
+        logger.error('Error en requireAdmin: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error interno del servidor.' });
     }
 }

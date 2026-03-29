@@ -3,6 +3,7 @@ const { pool } = require('../db/pool');
 const { requireAuth } = require('../middleware/authMiddleware');
 const { validateBody, validateParams } = require('../middleware/validate');
 const { crearPlantillaSchema, actualizarPlantillaSchema, idPlantillaParamSchema } = require('../validators/plantillas');
+const logger = require('../config/logger');
 
 const router = express.Router();
 
@@ -17,7 +18,7 @@ router.get('/', async (req, res) => {
         );
         res.json({ plantillas: result.rows });
     } catch (err) {
-        console.error('Error en GET /plantillas:', err);
+        logger.error('Error en GET /plantillas: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error interno del servidor.' });
     }
 });
@@ -36,7 +37,7 @@ router.get('/:id', validateParams(idPlantillaParamSchema), async (req, res) => {
 
         res.json({ plantilla: result.rows[0] });
     } catch (err) {
-        console.error('Error en GET /plantillas/:id:', err);
+        logger.error('Error en GET /plantillas/:id: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error interno del servidor.' });
     }
 });
@@ -90,7 +91,7 @@ router.post('/', validateBody(crearPlantillaSchema), async (req, res) => {
 
         res.status(201).json({ plantilla: result.rows[0] });
     } catch (err) {
-        console.error('Error en POST /plantillas:', err);
+        logger.error('Error en POST /plantillas: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error interno del servidor.' });
     }
 });
@@ -115,7 +116,7 @@ router.put('/:id', validateParams(idPlantillaParamSchema), validateBody(actualiz
 
         res.json({ plantilla: result.rows[0] });
     } catch (err) {
-        console.error('Error en PUT /plantillas/:id:', err);
+        logger.error('Error en PUT /plantillas/:id: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error interno del servidor.' });
     }
 });
@@ -140,7 +141,7 @@ router.delete('/:id', validateParams(idPlantillaParamSchema), async (req, res) =
 
         res.json({ message: 'Plantilla eliminada exitosamente.' });
     } catch (err) {
-        console.error('Error en DELETE /plantillas/:id:', err);
+        logger.error('Error en DELETE /plantillas/:id: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error interno del servidor.' });
     }
 });

@@ -4,6 +4,7 @@ const { pool } = require('../db/pool');
 const { validateBody } = require('../middleware/validate');
 const { registerSchema, loginSchema, passwordChangeSchema, forgotPasswordSchema, validateCodeSchema, resetPasswordSchema } = require('../validators/auth');
 const { loginLimiter, registerLimiter, passwordLimiter } = require('../middleware/rateLimiter');
+const logger = require('../config/logger');
 const router = express.Router();
 
 // ── POST /api/auth/register ─────────────────────────────────
@@ -40,7 +41,7 @@ router.post('/register', registerLimiter, validateBody(registerSchema), async (r
             },
         });
     } catch (err) {
-        console.error('Error en registro:', err);
+        logger.error('Error en registro: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error interno del servidor.' });
     }
 });
@@ -78,7 +79,7 @@ router.post('/login', loginLimiter, validateBody(loginSchema), async (req, res) 
             },
         });
     } catch (err) {
-        console.error('Error en login:', err);
+        logger.error('Error en login: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error interno del servidor.' });
     }
 });
@@ -115,7 +116,7 @@ router.get('/me', async (req, res) => {
 
         res.json({ usuario: result.rows[0] });
     } catch (err) {
-        console.error('Error en /me:', err);
+        logger.error('Error en /me: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error interno del servidor.' });
     }
 });
@@ -146,7 +147,7 @@ router.put('/password', passwordLimiter, validateBody(passwordChangeSchema), asy
 
         res.json({ message: 'Contraseña actualizada exitosamente.' });
     } catch (err) {
-        console.error('Error en cambio de contraseña:', err);
+        logger.error('Error en cambio de contraseña: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error interno del servidor.' });
     }
 });
@@ -188,7 +189,7 @@ router.post('/forgot-password', validateBody(forgotPasswordSchema), async (req, 
 
         res.json({ message: 'Si el correo existe, se ha enviado un código.' });
     } catch (err) {
-        console.error('Error en forgot-password:', err);
+        logger.error('Error en forgot-password: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error interno del servidor.' });
     }
 });
@@ -214,7 +215,7 @@ router.post('/validate-code', validateBody(validateCodeSchema), async (req, res)
 
         res.json({ message: 'Código válido.' });
     } catch (err) {
-        console.error('Error en validate-code:', err);
+        logger.error('Error en validate-code: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error interno del servidor.' });
     }
 });
@@ -246,7 +247,7 @@ router.post('/reset-password', validateBody(resetPasswordSchema), async (req, re
 
         res.json({ message: 'Contraseña restablecida exitosamente.' });
     } catch (err) {
-        console.error('Error en reset-password:', err);
+        logger.error('Error en reset-password: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error interno del servidor.' });
     }
 });

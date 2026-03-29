@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const { requireAuth } = require('../middleware/authMiddleware');
 const storageService = require('../services/storageService');
+const logger = require('../config/logger');
 
 const router = express.Router();
 const upload = multer({
@@ -32,7 +33,7 @@ router.post('/image', upload.single('image'), async (req, res) => {
 
         res.json({ url });
     } catch (err) {
-        console.error('Error en POST /uploads/image:', err);
+        logger.error('Error en POST /uploads/image: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error al subir la imagen.' });
     }
 });
