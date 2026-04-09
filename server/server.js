@@ -22,7 +22,12 @@ const cookieParser = require('cookie-parser');
 const csrfMiddleware = (req, res, next) => next();
 
 const app = express();
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 3000;
+
+// ── Orígenes permitidos para CORS ───────────────────────────
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',')
+    : ['http://localhost:5173'];
 
 // ── Configurar Email Transporter ────────────────────────────
 async function setupEmailTransporter() {
@@ -89,8 +94,13 @@ app.use(morgan(morganFormat, {
     skip: (req, res) => res.statusCode === 429
 }));
 
+// ── Health check (antes de auth/session para acceso sin token) ──
+app.get('/health', (req, res) => {
+    res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 app.use(cors({
-    origin: 'http://localhost:5173',
+    origin: allowedOrigins,
     credentials: true,
 }));
 
@@ -102,6 +112,8 @@ app.use(csrfMiddleware);
 app.use('/api', apiLimiter);
 
 // ── Sesiones con PostgreSQL ─────────────────────────────────
+const isProduction = process.env.NODE_ENV === 'production';
+
 app.use(session({
     store: new pgSession({
         pool: pool,
@@ -114,8 +126,8 @@ app.use(session({
     cookie: {
         maxAge: 24 * 60 * 60 * 1000, // 24 horas
         httpOnly: true,
-        secure: false, // cambiar a true en producción con HTTPS
-        sameSite: 'lax',
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax',
     },
 }));
 
@@ -127,10 +139,7 @@ app.use('/api/uploads', uploadsRoutes);
 app.use('/api/suscripciones', suscripcionesRoutes);
 app.use('/api/admin', adminRoutes);
 
-// ── Health check ────────────────────────────────────────────
-app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
+
 
 // ── Servir archivos subidos (local storage) ─────────────────
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
