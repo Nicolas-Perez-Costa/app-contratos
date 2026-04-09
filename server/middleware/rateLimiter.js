@@ -1,4 +1,4 @@
-const rateLimit = require('express-rate-limit');
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 
 // Limiter estricto para login: 10 intentos por IP cada 15 minutos
 const loginLimiter = rateLimit({
@@ -10,9 +10,9 @@ const loginLimiter = rateLimit({
         error: 'Demasiados intentos de inicio de sesión. Intenta de nuevo en 15 minutos.',
     },
     keyGenerator: (req) => {
-        return req.ip + ':' + (req.body?.email || 'unknown');
+        return ipKeyGenerator(req) + ':' + (req.body?.email || 'unknown');
     },
-    validate: { ipAddress: false },
+    validate: { ip: false },
 });
 
 // Limiter para registro: 5 cuentas por IP cada hora
