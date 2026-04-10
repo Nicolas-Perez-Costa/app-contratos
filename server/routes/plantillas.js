@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const { pool } = require('../db/pool');
 const { requireAuth } = require('../middleware/authMiddleware');
+const { requirePlan } = require('../middleware/requirePlan');
 const { validateBody, validateParams } = require('../middleware/validate');
 const { crearPlantillaSchema, actualizarPlantillaSchema, idPlantillaParamSchema } = require('../validators/plantillas');
 const logger = require('../config/logger');
@@ -47,45 +48,29 @@ const uploadLogo = multer({
 });
 
 // ── POST /api/plantillas/upload-logo ────────────────────────
-router.post('/upload-logo', async (req, res) => {
-    try {
-        // Verificar plan del usuario
-        const userResult = await pool.query(
-            'SELECT plan_actual FROM usuarios WHERE id_usuario = $1',
-            [req.session.userId]
-        );
-        const user = userResult.rows[0];
-
-        if (!user || user.plan_actual === 'Gratuito') {
-            return res.status(403).json({ mensaje: 'Tu plan no permite personalización de marca.' });
-        }
-
-        // Procesar upload con multer
-        uploadLogo.single('logo')(req, res, (err) => {
-            try {
-                if (err) {
-                    if (err.message === 'INVALID_FILE_TYPE' || err.code === 'LIMIT_FILE_SIZE') {
-                        return res.status(400).json({ mensaje: 'Solo se permiten archivos PNG o JPG de hasta 2MB.' });
-                    }
-                    logger.error('Error en upload de logo: ' + err.message, { error: err });
+router.post('/upload-logo', requirePlan(['Pro', 'Empresa']), (req, res) => {
+    // Procesar upload con multer
+    uploadLogo.single('logo')(req, res, (err) => {
+        try {
+            if (err) {
+                if (err.message === 'INVALID_FILE_TYPE' || err.code === 'LIMIT_FILE_SIZE') {
                     return res.status(400).json({ mensaje: 'Solo se permiten archivos PNG o JPG de hasta 2MB.' });
                 }
-
-                if (!req.file) {
-                    return res.status(400).json({ mensaje: 'No se recibió ningún archivo.' });
-                }
-
-                const logo_url = `uploads/logos/${req.file.filename}`;
-                res.status(200).json({ logo_url });
-            } catch (innerErr) {
-                logger.error('Error procesando upload de logo: ' + innerErr.message, { error: innerErr });
-                res.status(500).json({ error: 'Error interno del servidor.' });
+                logger.error('Error en upload de logo: ' + err.message, { error: err });
+                return res.status(400).json({ mensaje: 'Solo se permiten archivos PNG o JPG de hasta 2MB.' });
             }
-        });
-    } catch (err) {
-        logger.error('Error en POST /plantillas/upload-logo: ' + err.message, { error: err });
-        res.status(500).json({ error: 'Error interno del servidor.' });
-    }
+
+            if (!req.file) {
+                return res.status(400).json({ mensaje: 'No se recibió ningún archivo.' });
+            }
+
+            const logo_url = `uploads/logos/${req.file.filename}`;
+            res.status(200).json({ logo_url });
+        } catch (innerErr) {
+            logger.error('Error procesando upload de logo: ' + innerErr.message, { error: innerErr });
+            res.status(500).json({ error: 'Error interno del servidor.' });
+        }
+    });
 });
 
 // ── GET /api/plantillas ─────────────────────────────────────

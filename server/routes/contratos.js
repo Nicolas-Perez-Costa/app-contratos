@@ -1,6 +1,7 @@
 const express = require('express');
 const { pool } = require('../db/pool');
 const { requireAuth } = require('../middleware/authMiddleware');
+const { requirePlan } = require('../middleware/requirePlan');
 const { generarPDFContrato } = require('../services/pdfService');
 const storageService = require('../services/storageService');
 const path = require('path');
@@ -216,7 +217,7 @@ router.post('/:id/firmar', validateParams(idContratoParamSchema), validateBody(f
     try {
         // Obtener contrato con datos de plantilla
         const contratoResult = await pool.query(
-            `SELECT c.*, p.nombre_plantilla, COALESCE(c.estructura_bloques, p.estructura_bloques) AS estructura_bloques
+            `SELECT c.*, p.nombre_plantilla
        FROM contratos c
        LEFT JOIN plantillas p ON c.id_plantilla = p.id_plantilla
        WHERE c.id_contrato = $1 AND c.id_usuario = $2`,
