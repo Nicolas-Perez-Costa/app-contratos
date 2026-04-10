@@ -5,8 +5,12 @@ const { requireAdmin } = require('../middleware/requireAdmin');
 const { validateBody, validateParams, validateQuery } = require('../middleware/validate');
 const { queryUsuariosSchema, idUsuarioParamSchema, trialSchema, cambiarPlanSchema, notaSchema } = require('../validators/admin');
 const logger = require('../config/logger');
+const { adminLimiter } = require('../config/rateLimiters');
 
 const router = express.Router();
+
+// Rate limiting global del router
+router.use(adminLimiter);
 
 // Aplicar ambos middlewares a todas las rutas
 router.use(requireAuth, requireAdmin);

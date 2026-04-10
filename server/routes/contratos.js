@@ -8,8 +8,12 @@ const { validateBody, validateParams, validateQuery } = require('../middleware/v
 const { crearContratoSchema, actualizarContratoSchema, firmarContratoSchema, idContratoParamSchema, paginacionQuerySchema, pdfQuerySchema } = require('../validators/contratos');
 const { sanitizeObject } = require('../utils/sanitize');
 const logger = require('../config/logger');
+const { contratosLimiter } = require('../config/rateLimiters');
 
 const router = express.Router();
+
+// Rate limiting global del router
+router.use(contratosLimiter);
 
 // Todas las rutas requieren autenticación
 router.use(requireAuth);

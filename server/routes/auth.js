@@ -5,7 +5,11 @@ const { validateBody } = require('../middleware/validate');
 const { registerSchema, loginSchema, passwordChangeSchema, forgotPasswordSchema, validateCodeSchema, resetPasswordSchema } = require('../validators/auth');
 const { loginLimiter, registerLimiter, passwordLimiter } = require('../middleware/rateLimiter');
 const logger = require('../config/logger');
+const { authLimiter } = require('../config/rateLimiters');
 const router = express.Router();
+
+// Rate limiting global del router
+router.use(authLimiter);
 
 // ── POST /api/auth/register ─────────────────────────────────
 router.post('/register', registerLimiter, validateBody(registerSchema), async (req, res) => {

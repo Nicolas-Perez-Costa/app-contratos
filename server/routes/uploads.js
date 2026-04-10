@@ -3,8 +3,13 @@ const multer = require('multer');
 const { requireAuth } = require('../middleware/authMiddleware');
 const storageService = require('../services/storageService');
 const logger = require('../config/logger');
+const { uploadsLimiter } = require('../config/rateLimiters');
 
 const router = express.Router();
+
+// Rate limiting global del router
+router.use(uploadsLimiter);
+
 const upload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: 2 * 1024 * 1024 }, // 2MB max (compressed images should be ~500KB)

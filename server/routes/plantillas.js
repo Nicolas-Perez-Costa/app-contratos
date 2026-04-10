@@ -7,8 +7,12 @@ const { requireAuth } = require('../middleware/authMiddleware');
 const { validateBody, validateParams } = require('../middleware/validate');
 const { crearPlantillaSchema, actualizarPlantillaSchema, idPlantillaParamSchema } = require('../validators/plantillas');
 const logger = require('../config/logger');
+const { plantillasLimiter } = require('../config/rateLimiters');
 
 const router = express.Router();
+
+// Rate limiting global del router
+router.use(plantillasLimiter);
 
 router.use(requireAuth);
 
