@@ -41,6 +41,11 @@ const WARNING_GROUPS = [
         vars: ['R2_ENDPOINT', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET_NAME', 'R2_PUBLIC_URL'],
         note: 'Solo estará disponible el almacenamiento local de archivos.',
     },
+    {
+        service: 'Monitoreo de errores / Sentry',
+        vars: ['SENTRY_DSN'],
+        note: 'Los errores de producción no serán monitoreados automáticamente.',
+    },
 ];
 
 /**

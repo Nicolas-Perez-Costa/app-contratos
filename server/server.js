@@ -6,6 +6,17 @@ const path = require('path');
 const nodemailer = require('nodemailer');
 const { Resend } = require('resend');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+
+const Sentry = require('@sentry/node');
+Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'production',
+    tracesSampleRate: 0.2,
+    enabled: !!process.env.SENTRY_DSN,
+});
+
+const { validateEnv } = require('./config/validateEnv');
+validateEnv();
 const logger = require('./config/logger');
 const morgan = require('morgan');
 
@@ -181,6 +192,9 @@ app.use('/api/admin', adminRoutes);
 
 // ── Servir archivos subidos (local storage) ─────────────────
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// ── Sentry error handler (captura errores antes del handler global) ──
+Sentry.setupExpressErrorHandler(app);
 
 // ── Manejador de errores global ─────────────────────────────
 app.use((err, req, res, next) => {

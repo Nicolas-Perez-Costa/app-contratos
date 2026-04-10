@@ -95,6 +95,18 @@
             animation: fadeIn 0.3s ease;
         }
 
+        .success-message {
+            background: $accent-green-light;
+            color: $accent-green;
+            padding: $spacing-md;
+            border-radius: $radius-sm;
+            font-size: $font-size-sm;
+            margin-bottom: $spacing-lg;
+            text-align: center;
+            font-weight: 600;
+            animation: fadeIn 0.3s ease;
+        }
+
         .login-footer {
             text-align: center;
             margin-top: $spacing-xl;
