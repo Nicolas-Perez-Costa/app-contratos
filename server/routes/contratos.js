@@ -317,23 +317,14 @@ router.post('/:id/firmar', validateParams(idContratoParamSchema), validateBody(f
         if (numeroLimpio && pdfUrl) {
             try {
                 const { enviarPDFporWhatsApp, isTwilioConfigured } = require('../services/whatsappService');
-                logger.info('WhatsApp debug: numeroLimpio=' + numeroLimpio);
-                logger.info('WhatsApp debug: pdfUrl=' + pdfUrl);
-                logger.info('WhatsApp debug: Twilio configurado=' + isTwilioConfigured());
+
                 if (isTwilioConfigured()) {
                     enviarPDFporWhatsApp({
                         numeroCliente: numeroLimpio,
                         nombreCliente: cliente_nombre || 'Cliente',
                         pdfUrl: pdfUrl,
                         nombreEmpresa: empresa.nombre_empresa || 'Gestión de Contratos',
-                    }).catch(waErr => {
-                        logger.error('Error enviando WhatsApp: ' + waErr.message, {
-                            code: waErr.code,
-                            status: waErr.status,
-                            fullError: JSON.stringify(waErr),
-                            error: waErr,
-                        });
-                    });
+                    }).catch(waErr => logger.error('Error enviando WhatsApp: ' + waErr.message, { error: waErr }));
                 }
             } catch (waLoadErr) {
                 logger.warn('WhatsApp service no disponible: ' + waLoadErr.message, { error: waLoadErr });
