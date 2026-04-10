@@ -5,6 +5,34 @@ const { sanitizeForPDF } = require('../utils/sanitize');
 const logger = require('../config/logger');
 
 /**
+ * Descarga una imagen desde una URL remota o lee desde disco local.
+ * @param {string} url - URL remota (http/https) o path relativo local
+ * @returns {Promise<Buffer|null>} Buffer de la imagen o null si falla
+ */
+async function fetchImageBuffer(url) {
+    try {
+        if (url.startsWith('http://') || url.startsWith('https://')) {
+            const response = await fetch(url);
+            if (!response.ok) {
+                logger.warn(`fetchImageBuffer: HTTP ${response.status} al descargar ${url}`);
+                return null;
+            }
+            return Buffer.from(await response.arrayBuffer());
+        } else {
+            const localPath = path.join(__dirname, '..', url);
+            if (!fs.existsSync(localPath)) {
+                logger.warn('fetchImageBuffer: archivo local no encontrado: ' + localPath);
+                return null;
+            }
+            return fs.readFileSync(localPath);
+        }
+    } catch (err) {
+        logger.warn('fetchImageBuffer: error obteniendo imagen: ' + err.message, { error: err });
+        return null;
+    }
+}
+
+/**
  * Genera un PDF completo para un contrato firmado o en borrador.
  * @param {Object} opciones
  * @param {Object} opciones.contrato - Row completo del contrato desde la DB
@@ -33,10 +61,10 @@ async function generarPDFContrato({ contrato, bloques = [], datos = {}, firmaBas
 
         try {
             // ── Logo de branding en encabezado ──
-            _renderBrandingLogo(doc, { brandingLogoUrl, logoPosicion });
+            await _renderBrandingLogo(doc, { brandingLogoUrl, logoPosicion });
 
             // ── Encabezado ──
-            _renderEncabezado(doc, { nombreEmpresa, logoUrl });
+            await _renderEncabezado(doc, { nombreEmpresa, logoUrl });
 
             // ── Línea separadora ──
             doc.moveDown(1);
@@ -62,7 +90,7 @@ async function generarPDFContrato({ contrato, bloques = [], datos = {}, firmaBas
             }
 
             // ── Bloques del contrato ──
-            _renderBloques(doc, bloques, datos);
+            await _renderBloques(doc, bloques, datos);
 
             // ── Firma digital ──
             _renderFirma(doc, firmaBase64, contrato);
@@ -88,15 +116,12 @@ async function generarPDFContrato({ contrato, bloques = [], datos = {}, firmaBas
 /**
  * Renderiza el logo de branding de la plantilla en el encabezado.
  */
-function _renderBrandingLogo(doc, { brandingLogoUrl, logoPosicion }) {
+async function _renderBrandingLogo(doc, { brandingLogoUrl, logoPosicion }) {
     if (!brandingLogoUrl) return;
 
     try {
-        const logoPath = path.join(__dirname, '..', brandingLogoUrl);
-        if (!fs.existsSync(logoPath)) {
-            logger.warn('Logo de branding no encontrado: ' + logoPath);
-            return;
-        }
+        const logoBuffer = await fetchImageBuffer(brandingLogoUrl);
+        if (!logoBuffer) return;
 
         const pageWidth = doc.page.width;
         const logoWidth = 80;
@@ -116,7 +141,7 @@ function _renderBrandingLogo(doc, { brandingLogoUrl, logoPosicion }) {
                 break;
         }
 
-        doc.image(logoPath, xPos, yPos, { width: logoWidth });
+        doc.image(logoBuffer, xPos, yPos, { width: logoWidth });
 
         // Mover el cursor Y debajo del logo para evitar superposición
         doc.y = Math.max(doc.y, yPos + 70);
@@ -125,12 +150,16 @@ function _renderBrandingLogo(doc, { brandingLogoUrl, logoPosicion }) {
     }
 }
 
-function _renderEncabezado(doc, { nombreEmpresa, logoUrl }) {
+async function _renderEncabezado(doc, { nombreEmpresa, logoUrl }) {
     const titulo = sanitizeForPDF(nombreEmpresa) || 'Informe de Visita Técnica';
     if (logoUrl) {
-        const logoPath = path.join(__dirname, '..', logoUrl);
-        if (fs.existsSync(logoPath)) {
-            try { doc.image(logoPath, 50, doc.y, { width: 80 }); } catch (e) { logger.warn('Logo no insertado: ' + e.message, { error: e }); }
+        try {
+            const logoBuffer = await fetchImageBuffer(logoUrl);
+            if (logoBuffer) {
+                doc.image(logoBuffer, 50, doc.y, { width: 80 });
+            }
+        } catch (e) {
+            logger.warn('Logo no insertado: ' + e.message, { error: e });
         }
     }
     doc.fontSize(14).font('Helvetica-Bold').fillColor('#2D8A4E').text(titulo, { align: logoUrl ? 'right' : 'left' });
@@ -158,7 +187,7 @@ function _renderDatosCliente(doc, contrato) {
     doc.moveDown(1.5);
 }
 
-function _renderBloques(doc, bloques, datos) {
+async function _renderBloques(doc, bloques, datos) {
     if (!bloques || bloques.length === 0) {
         if (datos && Object.keys(datos).length > 0) {
             doc.fontSize(11).font('Helvetica-Bold').fillColor('#000000').text('Datos ingresados:');
@@ -175,7 +204,7 @@ function _renderBloques(doc, bloques, datos) {
         return;
     }
 
-    bloques.forEach((bloque) => {
+    for (const bloque of bloques) {
         // Salto de página si queda poco espacio
         if (doc.y > 700) doc.addPage();
 
@@ -192,35 +221,35 @@ function _renderBloques(doc, bloques, datos) {
                 doc.font('Helvetica').fillColor(colorValor).text(String(valor));
                 doc.moveDown(0.5);
             } else if (bloque.tipo === 'imagen') {
-                _renderBloqueImagen(doc, bloque, datos);
+                await _renderBloqueImagen(doc, bloque, datos);
             } else {
                 logger.warn(`Tipo de bloque desconocido: ${bloque.tipo}, ignorando.`);
             }
         } catch (bloqueErr) {
             logger.warn('Error renderizando bloque: ' + bloqueErr.message, { error: bloqueErr });
         }
-    });
+    }
 }
 
-function _renderBloqueImagen(doc, bloque, datos) {
+async function _renderBloqueImagen(doc, bloque, datos) {
     const imagenes = datos[bloque.variable];
     if (!imagenes) return;
     const labelStr = bloque.etiqueta || (bloque.variable ? bloque.variable.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase()) : '');
     doc.fontSize(11).font('Helvetica-Bold').fillColor('#000000').text(`${labelStr}:`);
     doc.moveDown(0.3);
     const urls = Array.isArray(imagenes) ? imagenes : [imagenes];
-    urls.forEach((imgUrl) => {
+    for (const imgUrl of urls) {
         if (doc.y > 600) doc.addPage();
         try {
-            const imgPath = path.join(__dirname, '..', imgUrl);
-            if (fs.existsSync(imgPath)) {
-                doc.image(imgPath, { width: 250, align: 'center' });
+            const imgBuffer = await fetchImageBuffer(imgUrl);
+            if (imgBuffer) {
+                doc.image(imgBuffer, { width: 250, align: 'center' });
                 doc.moveDown(0.5);
             }
         } catch (imgErr) {
             logger.warn('Imagen no insertada en PDF: ' + imgErr.message, { error: imgErr });
         }
-    });
+    }
     doc.moveDown(0.5);
 }
 
