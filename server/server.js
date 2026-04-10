@@ -5,7 +5,6 @@ const cors = require('cors');
 const path = require('path');
 const nodemailer = require('nodemailer');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
-console.log('STORAGE_PROVIDER:', process.env.STORAGE_PROVIDER);
 const logger = require('./config/logger');
 const morgan = require('morgan');
 
