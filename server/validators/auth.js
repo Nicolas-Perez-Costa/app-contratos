@@ -85,11 +85,23 @@ const resetPasswordSchema = z.object({
         .regex(/[!@#$%^&*()\-_=+\[\]{}|;:'",.<>/?~`\\]/, 'La contraseña debe contener al menos un carácter especial.'),
 });
 
+const verifyEmailSchema = z.object({
+    email: z
+        .string({ required_error: 'El email es obligatorio.' })
+        .trim()
+        .toLowerCase()
+        .email('Formato de email inválido.'),
+    code: z
+        .string({ required_error: 'El código es obligatorio.' })
+        .length(6, 'El código debe tener 6 caracteres.'),
+});
+
 module.exports = { 
     registerSchema, 
     loginSchema, 
     passwordChangeSchema, 
     forgotPasswordSchema, 
     validateCodeSchema, 
-    resetPasswordSchema 
+    resetPasswordSchema,
+    verifyEmailSchema 
 };
