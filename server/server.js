@@ -5,6 +5,7 @@ const cors = require('cors');
 const path = require('path');
 const nodemailer = require('nodemailer');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+console.log('STORAGE_PROVIDER:', process.env.STORAGE_PROVIDER);
 const logger = require('./config/logger');
 const morgan = require('morgan');
 
@@ -154,12 +155,12 @@ app.use((err, req, res, next) => {
         userId: req.user?.id || null,
         fullError: err
     });
-    
+
     // Si la respuesta ya fue enviada, delegar al siguiente manejador por defecto de Express
     if (res.headersSent) {
         return next(err);
     }
-    
+
     res.status(500).json({ error: 'Error interno del servidor' });
 });
 
