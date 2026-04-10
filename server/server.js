@@ -4,6 +4,7 @@ const pgSession = require('connect-pg-simple')(session);
 const cors = require('cors');
 const path = require('path');
 const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 const logger = require('./config/logger');
 const morgan = require('morgan');
@@ -31,18 +32,55 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
 
 // ── Configurar Email Transporter ────────────────────────────
 async function setupEmailTransporter() {
-    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-        // Usar credenciales SMTP reales si están configuradas
-        const transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST || 'smtp.gmail.com',
-            port: parseInt(process.env.SMTP_PORT || '587'),
-            secure: false,
-            auth: {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASS,
+    if (process.env.RESEND_API_KEY) {
+        // Usar Resend como proveedor de email en producción
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        const fs = require('fs');
+
+        const transporter = {
+            async sendMail({ from, to, subject, html, text, attachments }) {
+                try {
+                    const payload = {
+                        from: process.env.EMAIL_FROM || from,
+                        to,
+                        subject,
+                        html,
+                    };
+
+                    if (attachments && attachments.length > 0) {
+                        payload.attachments = attachments.map((att) => {
+                            // Si ya viene un buffer/content en base64, usarlo directamente
+                            if (att.content) {
+                                const buf = Buffer.isBuffer(att.content)
+                                    ? att.content
+                                    : Buffer.from(att.content, 'base64');
+                                return {
+                                    filename: att.filename,
+                                    content: buf.toString('base64'),
+                                };
+                            }
+                            // Convertir path de nodemailer a content para Resend
+                            if (att.path) {
+                                const fileBuffer = fs.readFileSync(att.path);
+                                return {
+                                    filename: att.filename,
+                                    content: fileBuffer.toString('base64'),
+                                };
+                            }
+                            return att;
+                        });
+                    }
+
+                    const result = await resend.emails.send(payload);
+                    return result;
+                } catch (error) {
+                    logger.error('Error enviando email con Resend: ' + error.message, { error });
+                    throw error;
+                }
             },
-        });
-        logger.info('📧 Email configurado con SMTP real: ' + process.env.SMTP_USER);
+        };
+
+        logger.info('📧 Email configurado con Resend');
         return transporter;
     } else {
         // Auto-crear cuenta Ethereal para desarrollo
