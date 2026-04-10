@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const { MercadoPagoConfig, PreApproval, Payment } = require('mercadopago');
 const { pool } = require('../db/pool');
 const { requireAuth } = require('../middleware/authMiddleware');
@@ -109,11 +110,59 @@ router.post('/crear', requireAuth, validateBody(crearSuscripcionSchema), async (
     }
 });
 
+// ── Verificación de firma de webhooks de MercadoPago ────────
+function verificarFirmaMP(req) {
+    const xSignature = req.headers['x-signature'];
+    if (!xSignature) return false;
+
+    const xRequestId = req.headers['x-request-id'];
+
+    // Parsear campos ts y v1 del header x-signature
+    const parts = xSignature.split(',');
+    let ts = null;
+    let v1 = null;
+    for (const part of parts) {
+        const [key, value] = part.trim().split('=');
+        if (key === 'ts') ts = value;
+        if (key === 'v1') v1 = value;
+    }
+
+    if (!ts || !v1) return false;
+
+    // Construir string a firmar
+    const dataId = req.body?.data?.id || '';
+    const manifest = `id=${dataId};ts=${ts}`;
+
+    // Calcular HMAC-SHA256
+    const secret = process.env.MP_WEBHOOK_SECRET;
+    if (!secret) return false;
+
+    const hmac = crypto.createHmac('sha256', secret)
+        .update(manifest)
+        .digest('hex');
+
+    // Comparar usando timingSafeEqual para evitar timing attacks
+    try {
+        const hmacBuffer = Buffer.from(hmac);
+        const v1Buffer = Buffer.from(v1);
+        if (hmacBuffer.length !== v1Buffer.length) return false;
+        return crypto.timingSafeEqual(hmacBuffer, v1Buffer);
+    } catch {
+        return false;
+    }
+}
+
 // ── POST /api/suscripciones/webhook ─────────────────────────
 // Recibe notificaciones de MercadoPago (no requiere auth de sesión)
 router.post('/webhook', validateBody(webhookSchema), async (req, res) => {
     // Responder 200 inmediatamente para que MP no reintente
     res.status(200).json({ ok: true });
+
+    // Verificar firma de MercadoPago
+    if (!verificarFirmaMP(req)) {
+        logger.warn('Webhook MP: firma inválida, ignorando notificación');
+        return;
+    }
 
     try {
         const { type, data } = req.body;
@@ -167,9 +216,15 @@ router.post('/webhook', validateBody(webhookSchema), async (req, res) => {
                     break;
             }
 
-            // Calcular vencimiento (próximo mes desde ahora)
-            const vencimiento = new Date();
-            vencimiento.setMonth(vencimiento.getMonth() + 1);
+            // Calcular vencimiento: usar charged_until de MP si está disponible
+            let vencimiento;
+            if (sub.charged_until) {
+                vencimiento = new Date(sub.charged_until);
+            } else {
+                // Fallback: un mes desde ahora
+                vencimiento = new Date();
+                vencimiento.setMonth(vencimiento.getMonth() + 1);
+            }
 
             await pool.query(
                 `UPDATE usuarios SET
@@ -247,6 +302,62 @@ router.get('/estado', requireAuth, async (req, res) => {
     } catch (err) {
         logger.error('Error en GET /suscripciones/estado: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error interno del servidor.' });
+    }
+});
+
+// ── POST /api/suscripciones/cancelar ────────────────────────
+// Cancela la suscripción del usuario en MercadoPago y lo pasa a Gratuito
+router.post('/cancelar', requireAuth, async (req, res) => {
+    try {
+        const id_usuario = req.session.userId;
+
+        // Obtener datos de suscripción del usuario
+        const userResult = await pool.query(
+            'SELECT suscripcion_mp_id, plan_actual FROM usuarios WHERE id_usuario = $1',
+            [id_usuario]
+        );
+
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Usuario no encontrado.' });
+        }
+
+        const usuario = userResult.rows[0];
+
+        if (!usuario.suscripcion_mp_id || usuario.plan_actual === 'Gratuito') {
+            return res.status(400).json({ error: 'No tienes una suscripción activa para cancelar.' });
+        }
+
+        // Inicializar cliente de MercadoPago
+        const mpClient = getMPClient();
+        if (!mpClient) {
+            return res.status(503).json({
+                error: 'MercadoPago no está configurado. No se puede cancelar la suscripción.',
+            });
+        }
+
+        // Cancelar en MercadoPago
+        const preApproval = new PreApproval(mpClient);
+        await preApproval.update({
+            id: usuario.suscripcion_mp_id,
+            body: { status: 'cancelled' },
+        });
+
+        // Actualizar en la base de datos
+        await pool.query(
+            `UPDATE usuarios SET
+                plan_actual = 'Gratuito',
+                plan_estado = 'cancelado',
+                suscripcion_mp_id = NULL
+            WHERE id_usuario = $1`,
+            [id_usuario]
+        );
+
+        res.status(200).json({
+            message: 'Tu suscripción fue cancelada exitosamente. Tu plan volverá a Gratuito de inmediato.',
+        });
+    } catch (err) {
+        logger.error('Error al cancelar suscripción: ' + err.message, { error: err });
+        res.status(500).json({ error: 'Error al cancelar la suscripción.' });
     }
 });
 

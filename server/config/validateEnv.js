@@ -28,7 +28,7 @@ const WARNING_GROUPS = [
     },
     {
         service: 'Pagos / MercadoPago',
-        vars: ['MP_ACCESS_TOKEN'],
+        vars: ['MP_ACCESS_TOKEN', 'MP_WEBHOOK_SECRET'],
         note: 'El sistema de suscripciones no estará disponible.',
     },
     {
