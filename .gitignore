@@ -3,3 +3,8 @@ node_modules/
 dist/
 server/uploads/
 *.log
+
+# Scripts de testing y utilidades locales
+reset_pwd.js
+test_*.js
+tmp_*.js
