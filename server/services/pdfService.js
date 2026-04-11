@@ -95,7 +95,7 @@ async function generarPDFContrato({ contrato, bloques = [], datos = {}, firmaBas
         await _renderBloques(doc, bloques, datos);
 
         // ── Firma digital ──
-        _renderFirma(doc, firmaBase64, contrato);
+        await _renderFirma(doc, firmaBase64, contrato);
 
         // ── Marca de agua en todas las páginas ──
         if (marcaAgua) {
@@ -254,9 +254,9 @@ async function _renderBloqueImagen(doc, bloque, datos) {
     doc.moveDown(0.5);
 }
 
-function _renderFirma(doc, firmaBase64, contrato) {
-    // Solo renderizar si hay firma con datos reales (no un placeholder corto)
-    if (!firmaBase64 || firmaBase64.length < 200) return;
+async function _renderFirma(doc, firmaBase64, contrato) {
+    // Solo renderizar si hay firma
+    if (!firmaBase64) return;
 
     // Salto de página si queda poco espacio para firma + metadata
     if (doc.y > 550) doc.addPage();
@@ -271,9 +271,17 @@ function _renderFirma(doc, firmaBase64, contrato) {
     doc.moveDown(0.5);
 
     try {
-        // Extraer datos base64 puros (remover el prefijo data:image/png;base64,)
-        const base64Data = firmaBase64.replace(/^data:image\/\w+;base64,/, '');
-        const firmaBuffer = Buffer.from(base64Data, 'base64');
+        let firmaBuffer = null;
+        if (firmaBase64.startsWith('http://') || firmaBase64.startsWith('https://')) {
+            firmaBuffer = await fetchImageBuffer(firmaBase64);
+            if (!firmaBuffer) {
+                logger.warn('_renderFirma: no se pudo obtener imagen de firma desde URL');
+                return;
+            }
+        } else {
+            const base64Data = firmaBase64.replace(/^data:image\/\w+;base64,/, '');
+            firmaBuffer = Buffer.from(base64Data, 'base64');
+        }
 
         // Insertar la imagen de la firma real en el PDF
         doc.image(firmaBuffer, {

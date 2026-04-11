@@ -253,6 +253,19 @@ router.post('/:id/firmar', validateParams(idContratoParamSchema), validateBody(f
             return res.status(400).json({ error: 'Este contrato ya fue firmado.' });
         }
 
+        let firmaUrl = null;
+        if (firma_base64) {
+            try {
+                const datosBase64 = firma_base64.replace(/^data:image\/\w+;base64,/, '');
+                const firmaBuffer = Buffer.from(datosBase64, 'base64');
+                const firmaKey = `firmas/firma_${contrato.id_contrato}_${Date.now()}.png`;
+                firmaUrl = await storageService.uploadFile(firmaBuffer, firmaKey);
+            } catch (uploadErr) {
+                logger.error('Error subiendo firma a R2: ' + uploadErr.message, { error: uploadErr });
+                firmaUrl = null;
+            }
+        }
+
         // Actualizar contrato: estado, firma, datos del cliente
         await pool.query(
             `UPDATE contratos SET
@@ -263,7 +276,7 @@ router.post('/:id/firmar', validateParams(idContratoParamSchema), validateBody(f
                 email_cliente = $4
             WHERE id_contrato = $5`,
             [
-                firma_base64,
+                firmaUrl,
                 numeroLimpio,
                 cliente_nombre || null,
                 email_cliente || null,
@@ -293,7 +306,7 @@ router.post('/:id/firmar', validateParams(idContratoParamSchema), validateBody(f
                 contrato: { ...contrato, estado: 'Firmado', cliente_numero: numeroLimpio, cliente_nombre: cliente_nombre || null, email_cliente: email_cliente || null },
                 bloques,
                 datos,
-                firmaBase64: firma_base64,
+                firmaBase64: firmaUrl,
                 nombreEmpresa: empresa.nombre_empresa,
                 logoUrl: empresa.logo_url,
                 marcaAgua: contrato.marca_agua || null,
