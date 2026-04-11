@@ -14,6 +14,9 @@ function ProfilePage() {
     const [passwordErr, setPasswordErr] = useState('');
     const [saving, setSaving] = useState(false);
     const [upgrading, setUpgrading] = useState(null); // 'pro' | 'empresa' | null
+    const [mostrarConfirmCancel, setMostrarConfirmCancel] = useState(false);
+    const [canceling, setCanceling] = useState(false);
+    const [cancelMsg, setCancelMsg] = useState('');
 
     useEffect(() => {
         cargarPerfil();
@@ -40,6 +43,31 @@ function ProfilePage() {
             await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
         } catch (err) { /* logout anyway */ }
         navigate('/');
+    };
+
+    const handleCancelarSuscripcion = async () => {
+        setCanceling(true);
+        setCancelMsg('');
+        try {
+            const res = await fetch('/api/suscripciones/cancelar', {
+                method: 'POST',
+                credentials: 'include'
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                setCancelMsg(data.error || 'Error al cancelar la suscripción.');
+                setCanceling(false);
+                return;
+            }
+            setMostrarConfirmCancel(false);
+            setCancelMsg('');
+            await cargarPerfil();
+        } catch (err) {
+            setCancelMsg('Error de conexión. Intenta de nuevo.');
+            setCanceling(false);
+        } finally {
+            setCanceling(false);
+        }
     };
 
     const handleUpgrade = async (plan) => {
@@ -175,26 +203,61 @@ function ProfilePage() {
 
                 {/* Plan activo info */}
                 {esPago && (
-                    <div className="plan-active-info">
-                        <div className="plan-status-row">
-                            <span>Estado</span>
-                            <span className={`status-tag ${usuario?.plan_estado}`}>
-                                {usuario?.plan_estado === 'activo' ? '✅ Activo' :
-                                    usuario?.plan_estado === 'cancelado' ? '❌ Cancelado' :
-                                        usuario?.plan_estado === 'suspendido' ? '⚠️ Suspendido' : '⏳ Pendiente'}
-                            </span>
-                        </div>
-                        {usuario?.plan_vencimiento && (
+                    <>
+                        <div className="plan-active-info">
                             <div className="plan-status-row">
-                                <span>Próximo cobro</span>
-                                <span>{formatDate(usuario.plan_vencimiento)}</span>
+                                <span>Estado</span>
+                                <span className={`status-tag ${usuario?.plan_estado}`}>
+                                    {usuario?.plan_estado === 'activo' ? '✅ Activo' :
+                                        usuario?.plan_estado === 'cancelado' ? '❌ Cancelado' :
+                                            usuario?.plan_estado === 'suspendido' ? '⚠️ Suspendido' : '⏳ Pendiente'}
+                                </span>
                             </div>
-                        )}
-                        <div className="plan-benefits-active">
-                            ✨ Plantillas y contratos ilimitados • Marca blanca
-                            {esEmpresa && ' • 5 técnicos'}
+                            {usuario?.plan_vencimiento && (
+                                <div className="plan-status-row">
+                                    <span>Próximo cobro</span>
+                                    <span>{formatDate(usuario.plan_vencimiento)}</span>
+                                </div>
+                            )}
+                            <div className="plan-benefits-active">
+                                ✨ Plantillas y contratos ilimitados • Marca blanca
+                                {esEmpresa && ' • 5 técnicos'}
+                            </div>
                         </div>
-                    </div>
+                        <div className="cancel-subscription-section">
+                            {!mostrarConfirmCancel ? (
+                                <button
+                                    className="cancel-subscription-btn"
+                                    onClick={() => { setMostrarConfirmCancel(true); setCancelMsg(''); }}
+                                >
+                                    Cancelar suscripción
+                                </button>
+                            ) : (
+                                <div className="cancel-confirm-box">
+                                    <p className="cancel-confirm-text">
+                                        ¿Estás seguro? Tu plan volverá a Gratuito de inmediato y perderás acceso a las funciones premium.
+                                    </p>
+                                    {cancelMsg && <p className="cancel-error-msg">{cancelMsg}</p>}
+                                    <div className="cancel-confirm-actions">
+                                        <button
+                                            className="cancel-confirm-yes"
+                                            onClick={handleCancelarSuscripcion}
+                                            disabled={canceling}
+                                        >
+                                            {canceling ? 'Cancelando...' : 'Sí, cancelar suscripción'}
+                                        </button>
+                                        <button
+                                            className="cancel-confirm-no"
+                                            onClick={() => { setMostrarConfirmCancel(false); setCancelMsg(''); }}
+                                            disabled={canceling}
+                                        >
+                                            No, mantener plan
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </>
                 )}
 
                 {esGratuito && (
