@@ -85,6 +85,9 @@ function RegisterPage() {
     if (esperandoVerificacion) {
         return (
             <div className="register-page">
+                <div className="back-to-landing">
+                    <Link to="/">← Volver al inicio</Link>
+                </div>
                 <div className="login-card">
                     <div className="login-header">
                         <div className="login-icon">
@@ -141,6 +144,9 @@ function RegisterPage() {
 
     return (
         <div className="register-page">
+            <div className="back-to-landing">
+                <Link to="/">← Volver al inicio</Link>
+            </div>
             <div className="login-card">
                 <div className="login-header">
                     <div className="login-icon">
