@@ -359,38 +359,52 @@ function _renderMarcaAgua(doc, texto) {
 function _renderPiesPagina(doc, nombreEmpresa, footerTexto) {
     const range = doc.bufferedPageRange();
     const totalPages = range.count;
+    const lastPageIndex = range.start + totalPages - 1;
+
     for (let i = range.start; i < range.start + totalPages; i++) {
         doc.switchToPage(i);
 
-        // Desactivar temporalmente el margen inferior para evitar saltos de página automáticos
         const originalBottomMargin = doc.page.margins.bottom;
         doc.page.margins.bottom = 0;
+        const pageWidth = doc.page.width;
 
-        // Footer personalizado de branding (si existe)
+        // Aviso legal — solo en la última página
+        if (i === lastPageIndex) {
+            doc.fontSize(7).font('Helvetica').fillColor('#AAAAAA');
+            doc.text(
+                'Aviso legal: Este documento fue generado digitalmente mediante ContratosAgiles.com. ' +
+                'La firma registrada constituye una manifestación de voluntad del firmante como ' +
+                'instrumento privado (art. 287 CCyCN). No reemplaza la firma digital certificada ' +
+                'bajo Ley 25.506. contratosagiles.com',
+                50, 738,
+                { align: 'center', width: pageWidth - 100 }
+            );
+        }
+
+        // Footer de branding personalizado (si existe)
         if (footerTexto) {
-            const pageHeight = doc.page.height;
-            const pageWidth = doc.page.width;
             doc.fontSize(9).font('Helvetica').fillColor('#666666');
             doc.text(
                 footerTexto,
-                40, pageHeight - 40,
+                40, 763,
                 { align: 'center', width: pageWidth - 80 }
             );
         }
 
         // Footer estándar del sistema
-        const empresa = nombreEmpresa || 'Gestión de Contratos';
+        const empresa = nombreEmpresa || 'ContratosAgiles';
         doc.fontSize(7).font('Helvetica').fillColor('#AAAAAA');
         doc.text(
-            `Documento generado digitalmente — ${empresa}`,
-            50, 780, { align: 'center', width: 495 }
+            `Documento generado por ${empresa} — contratosagiles.com`,
+            50, 780,
+            { align: 'center', width: pageWidth - 100 }
         );
         doc.text(
-            `Página ${i + 1} de ${totalPages}`,
-            50, 790, { align: 'center', width: 495 }
+            `Página ${i - range.start + 1} de ${totalPages}`,
+            50, 790,
+            { align: 'center', width: pageWidth - 100 }
         );
 
-        // Restaurar el margen inferior
         doc.page.margins.bottom = originalBottomMargin;
     }
 }
