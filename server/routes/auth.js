@@ -174,10 +174,31 @@ router.get('/me', async (req, res) => {
 
     try {
         const result = await pool.query(
-            `SELECT id_usuario, email, plan_actual, plan_estado, contratos_usados_mes,
-                    plantillas_creadas, suscripcion_mp_id, plan_vencimiento, mes_actual,
-                    nombre, nombre_empresa, logo_url, created_at, rol, deleted_at
-       FROM usuarios WHERE id_usuario = $1`,
+            `SELECT
+                u.id_usuario,
+                u.email,
+                u.plan_actual,
+                u.plan_estado,
+                u.suscripcion_mp_id,
+                u.plan_vencimiento,
+                u.mes_actual,
+                u.nombre,
+                u.nombre_empresa,
+                u.logo_url,
+                u.created_at,
+                u.rol,
+                u.deleted_at,
+                (SELECT COUNT(*)::int
+                 FROM plantillas p
+                 WHERE p.id_usuario = u.id_usuario
+                ) AS plantillas_creadas,
+                (SELECT COUNT(*)::int
+                 FROM contratos c
+                 WHERE c.id_usuario = u.id_usuario
+                 AND date_trunc('month', c.fecha_creacion) = date_trunc('month', CURRENT_DATE)
+                ) AS contratos_usados_mes
+            FROM usuarios u
+            WHERE u.id_usuario = $1`,
             [req.session.userId]
         );
 
