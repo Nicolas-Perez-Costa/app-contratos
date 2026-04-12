@@ -10,6 +10,27 @@
     padding: $spacing-xl;
     background: $bg-primary;
 
+    .back-to-landing {
+        width: 100%;
+        max-width: 420px;
+        margin-bottom: $spacing-md;
+
+        a {
+            display: inline-flex;
+            align-items: center;
+            gap: $spacing-xs;
+            font-size: $font-size-sm;
+            color: $text-muted;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color $transition-fast;
+
+            &:hover {
+                color: $accent-green;
+            }
+        }
+    }
+
     .login-card {
         @include card-style;
         width: 100%;

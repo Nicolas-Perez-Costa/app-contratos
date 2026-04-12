@@ -69,6 +69,9 @@ function LoginPage() {
 
     return (
         <div className="login-page">
+            <div className="back-to-landing">
+                <Link to="/">← Volver al inicio</Link>
+            </div>
             <div className="login-card">
                 <div className="login-header">
                     <div className="login-icon">
@@ -149,8 +152,6 @@ function LoginPage() {
                     ¿No tienes cuenta?
                     <Link to="/register">Regístrate</Link>
                     <div className="legal-links">
-                        <Link to="/">← Volver al inicio</Link>
-                        {' · '}
                         <Link to="/terminos">Términos</Link>
                         {' · '}
                         <Link to="/privacidad">Privacidad</Link>
