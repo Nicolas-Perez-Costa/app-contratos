@@ -61,7 +61,7 @@ export default function NotFoundPage() {
                         <>
                             <button 
                                 className="not-found-btn not-found-btn--primary" 
-                                onClick={() => navigate('/')}
+                                onClick={() => navigate('/login')}
                             >
                                 Ir al Login
                             </button>

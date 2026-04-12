@@ -16,7 +16,7 @@ function AdminDashboardPage() {
         try {
             const res = await fetch('/api/admin/estadisticas', { credentials: 'include' });
             if (res.status === 401) {
-                navigate('/');
+                navigate('/login');
                 return;
             }
             if (res.status === 403) {

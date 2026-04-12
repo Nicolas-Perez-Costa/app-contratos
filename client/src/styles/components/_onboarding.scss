@@ -1,0 +1,130 @@
+@use '../variables' as *;
+@use '../mixins' as *;
+
+.onboarding-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 2000;
+    @include flex-center;
+    padding: $spacing-lg;
+    animation: fadeIn 0.3s ease;
+}
+
+.onboarding-modal {
+    background: $bg-card;
+    border-radius: $radius-xl;
+    padding: $spacing-2xl;
+    max-width: 480px;
+    width: 100%;
+    box-shadow: $shadow-lg;
+    animation: slideUp 0.35s ease;
+
+    .onboarding-header {
+        text-align: center;
+        margin-bottom: $spacing-xl;
+
+        .onboarding-step-indicator {
+            display: flex;
+            justify-content: center;
+            gap: $spacing-sm;
+            margin-bottom: $spacing-lg;
+
+            .step-dot {
+                width: 8px;
+                height: 8px;
+                border-radius: $radius-full;
+                background: $border-color;
+                transition: all $transition-base;
+
+                &.active {
+                    background: $accent-green;
+                    width: 24px;
+                    border-radius: 4px;
+                }
+
+                &.done {
+                    background: $accent-green;
+                }
+            }
+        }
+
+        .onboarding-icon {
+            font-size: 3rem;
+            margin-bottom: $spacing-md;
+            display: block;
+        }
+
+        h2 {
+            font-size: $font-size-xl;
+            font-weight: 700;
+            color: $text-primary;
+            margin-bottom: $spacing-sm;
+        }
+
+        p {
+            font-size: $font-size-sm;
+            color: $text-secondary;
+            line-height: 1.7;
+        }
+    }
+
+    .onboarding-content {
+        margin-bottom: $spacing-xl;
+
+        .onboarding-tip {
+            background: $accent-green-light;
+            border-radius: $radius-md;
+            padding: $spacing-md $spacing-lg;
+            font-size: $font-size-sm;
+            color: $accent-green;
+            font-weight: 500;
+            line-height: 1.6;
+            display: flex;
+            gap: $spacing-sm;
+            align-items: flex-start;
+
+            .tip-icon {
+                flex-shrink: 0;
+                font-size: $font-size-base;
+            }
+        }
+    }
+
+    .onboarding-actions {
+        display: flex;
+        flex-direction: column;
+        gap: $spacing-sm;
+
+        .btn-onboarding-primary {
+            @include btn-base;
+            background: $accent-green;
+            color: white;
+            width: 100%;
+            padding: $spacing-md;
+            border: none;
+            font-size: $font-size-base;
+            justify-content: center;
+
+            &:hover {
+                background: darken($accent-green, 8%);
+            }
+        }
+
+        .btn-onboarding-skip {
+            background: none;
+            border: none;
+            font-family: $font-family;
+            font-size: $font-size-sm;
+            color: $text-muted;
+            cursor: pointer;
+            padding: $spacing-sm;
+            text-align: center;
+            transition: color $transition-fast;
+
+            &:hover {
+                color: $text-secondary;
+            }
+        }
+    }
+}

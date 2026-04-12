@@ -149,6 +149,8 @@ function LoginPage() {
                     ¿No tienes cuenta?
                     <Link to="/register">Regístrate</Link>
                     <div className="legal-links">
+                        <Link to="/">← Volver al inicio</Link>
+                        {' · '}
                         <Link to="/terminos">Términos</Link>
                         {' · '}
                         <Link to="/privacidad">Privacidad</Link>

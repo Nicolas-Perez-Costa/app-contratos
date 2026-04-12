@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import ActionMenu from '../components/ActionMenu';
+import OnboardingWizard from '../components/OnboardingWizard';
 import '../styles/components/_home.scss';
 
 function HomePage() {
@@ -17,6 +18,7 @@ function HomePage() {
     const [buscar, setBuscar] = useState('');
     const [filtroEstado, setFiltroEstado] = useState('');
     const [buscarInput, setBuscarInput] = useState('');
+    const [mostrarOnboarding, setMostrarOnboarding] = useState(false);
 
     const navigate = useNavigate();
 
@@ -28,14 +30,17 @@ function HomePage() {
         try {
             const res = await fetch('/api/auth/me', { credentials: 'include' });
             if (!res.ok) {
-                navigate('/');
+                navigate('/login');
                 return;
             }
             const data = await res.json();
             setUsuario(data.usuario);
+            if (!data.usuario.onboarding_completado) {
+                setMostrarOnboarding(true);
+            }
             cargarContratos(1, {});
         } catch (err) {
-            navigate('/');
+            navigate('/login');
         } finally {
             setLoading(false);
         }
@@ -95,7 +100,7 @@ function HomePage() {
         try {
             await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
         } catch (err) { /* logout anyway */ }
-        navigate('/');
+        navigate('/login');
     };
 
     const handleOpenMenu = (e, contrato) => {
@@ -410,6 +415,10 @@ function HomePage() {
                     onClose={() => setMenuData(null)}
                     onAction={handleAction}
                 />
+            )}
+
+            {mostrarOnboarding && (
+                <OnboardingWizard onComplete={() => setMostrarOnboarding(false)} />
             )}
         </div>
     );

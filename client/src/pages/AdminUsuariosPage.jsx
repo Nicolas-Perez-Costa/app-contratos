@@ -29,7 +29,7 @@ function AdminUsuariosPage() {
 
             const res = await fetch(`/api/admin/usuarios?${params}`, { credentials: 'include' });
             if (res.status === 401) {
-                navigate('/');
+                navigate('/login');
                 return;
             }
             if (res.status === 403) {

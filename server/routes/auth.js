@@ -188,6 +188,7 @@ router.get('/me', async (req, res) => {
                 u.created_at,
                 u.rol,
                 u.deleted_at,
+                u.onboarding_completado,
                 (SELECT COUNT(*)::int
                  FROM plantillas p
                  WHERE p.id_usuario = u.id_usuario
@@ -213,6 +214,24 @@ router.get('/me', async (req, res) => {
         res.json({ usuario: result.rows[0] });
     } catch (err) {
         logger.error('Error en /me: ' + err.message, { error: err });
+        res.status(500).json({ error: 'Error interno del servidor.' });
+    }
+});
+
+// ── POST /api/auth/onboarding-completado ────────────────────
+router.post('/onboarding-completado', async (req, res) => {
+    if (!req.session.userId) {
+        return res.status(401).json({ error: 'No autenticado.' });
+    }
+
+    try {
+        await pool.query(
+            'UPDATE usuarios SET onboarding_completado = TRUE WHERE id_usuario = $1',
+            [req.session.userId]
+        );
+        res.json({ ok: true });
+    } catch (err) {
+        logger.error('Error en onboarding-completado: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error interno del servidor.' });
     }
 });

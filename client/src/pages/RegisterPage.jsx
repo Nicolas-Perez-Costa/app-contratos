@@ -73,7 +73,7 @@ function RegisterPage() {
 
             setSuccessMessage(data.message);
             setTimeout(() => {
-                navigate('/');
+                navigate('/login');
             }, 2000);
         } catch (err) {
             setError('Error de conexión. Inténtalo de nuevo.');
@@ -127,7 +127,7 @@ function RegisterPage() {
                     )}
 
                     <div className="login-footer">
-                        <Link to="/">Volver al inicio de sesión</Link>
+                        <Link to="/login">Volver al inicio de sesión</Link>
                         <div className="legal-links">
                             <Link to="/terminos">Términos</Link>
                             {' · '}
@@ -208,7 +208,7 @@ function RegisterPage() {
 
                 <div className="login-footer">
                     ¿Ya tienes cuenta?
-                    <Link to="/">Inicia sesión</Link>
+                    <Link to="/login">Inicia sesión</Link>
                     <div className="legal-links">
                         <Link to="/terminos">Términos</Link>
                         {' · '}

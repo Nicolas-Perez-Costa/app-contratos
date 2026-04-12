@@ -31,13 +31,13 @@ function ProfilePage() {
         try {
             const res = await fetch('/api/auth/me', { credentials: 'include' });
             if (!res.ok) {
-                navigate('/');
+                navigate('/login');
                 return;
             }
             const data = await res.json();
             setUsuario(data.usuario);
         } catch (err) {
-            navigate('/');
+            navigate('/login');
         } finally {
             setLoading(false);
         }
@@ -47,7 +47,7 @@ function ProfilePage() {
         try {
             await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
         } catch (err) { /* logout anyway */ }
-        navigate('/');
+        navigate('/login');
     };
 
     const handleEliminarCuenta = async () => {

@@ -1,0 +1,529 @@
+@use '../variables' as *;
+@use '../mixins' as *;
+
+// ── Landing Page ─────────────────────────────────────────────
+.landing-page {
+    min-height: 100vh;
+    background: $bg-primary;
+    font-family: $font-family;
+}
+
+// ── Navbar ───────────────────────────────────────────────────
+.landing-nav {
+    @include flex-between;
+    padding: $spacing-lg $spacing-xl;
+    background: $bg-card;
+    border-bottom: 1px solid $border-color;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: $shadow-sm;
+
+    .landing-logo {
+        font-size: $font-size-lg;
+        font-weight: 700;
+        color: $accent-green;
+        text-decoration: none;
+
+        span {
+            color: $text-primary;
+        }
+    }
+
+    .landing-nav-actions {
+        display: flex;
+        gap: $spacing-md;
+        align-items: center;
+
+        .btn-nav-login {
+            background: none;
+            border: 1.5px solid $border-color;
+            border-radius: $radius-md;
+            padding: $spacing-sm $spacing-lg;
+            font-family: $font-family;
+            font-size: $font-size-sm;
+            font-weight: 500;
+            color: $text-primary;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all $transition-fast;
+
+            &:hover {
+                border-color: $accent-green;
+                color: $accent-green;
+            }
+        }
+
+        .btn-nav-cta {
+            background: $accent-green;
+            border: none;
+            border-radius: $radius-md;
+            padding: $spacing-sm $spacing-lg;
+            font-family: $font-family;
+            font-size: $font-size-sm;
+            font-weight: 600;
+            color: white;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all $transition-fast;
+
+            &:hover {
+                background: darken($accent-green, 8%);
+                transform: translateY(-1px);
+            }
+        }
+    }
+}
+
+// ── Hero ─────────────────────────────────────────────────────
+.landing-hero {
+    text-align: center;
+    padding: 80px $spacing-xl 64px;
+    max-width: 720px;
+    margin: 0 auto;
+
+    .hero-badge {
+        display: inline-block;
+        background: $accent-green-light;
+        color: $accent-green;
+        font-size: $font-size-xs;
+        font-weight: 600;
+        padding: $spacing-xs $spacing-md;
+        border-radius: $radius-xl;
+        margin-bottom: $spacing-lg;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    h1 {
+        font-size: 2.75rem;
+        font-weight: 800;
+        color: $text-primary;
+        line-height: 1.15;
+        margin-bottom: $spacing-lg;
+
+        span {
+            color: $accent-green;
+        }
+
+        @media (max-width: 480px) {
+            font-size: 2rem;
+        }
+    }
+
+    .hero-subtitle {
+        font-size: $font-size-lg;
+        color: $text-secondary;
+        line-height: 1.7;
+        margin-bottom: $spacing-xl;
+        max-width: 560px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .hero-actions {
+        display: flex;
+        gap: $spacing-md;
+        justify-content: center;
+        flex-wrap: wrap;
+
+        .btn-hero-primary {
+            @include btn-base;
+            background: $accent-green;
+            color: white;
+            padding: $spacing-md $spacing-2xl;
+            font-size: $font-size-lg;
+            text-decoration: none;
+            border-radius: $radius-lg;
+
+            &:hover {
+                background: darken($accent-green, 8%);
+                transform: translateY(-2px);
+                box-shadow: 0 8px 24px rgba($accent-green, 0.3);
+            }
+        }
+
+        .btn-hero-secondary {
+            @include btn-base;
+            background: transparent;
+            color: $text-primary;
+            border: 1.5px solid $border-color;
+            padding: $spacing-md $spacing-2xl;
+            font-size: $font-size-lg;
+            text-decoration: none;
+            border-radius: $radius-lg;
+
+            &:hover {
+                border-color: $accent-green;
+                color: $accent-green;
+            }
+        }
+    }
+
+    .hero-note {
+        margin-top: $spacing-lg;
+        font-size: $font-size-xs;
+        color: $text-muted;
+    }
+}
+
+// ── Casos de uso ─────────────────────────────────────────────
+.landing-cases {
+    padding: 64px $spacing-xl;
+    background: $bg-card;
+    border-top: 1px solid $border-color;
+    border-bottom: 1px solid $border-color;
+
+    .cases-header {
+        text-align: center;
+        margin-bottom: $spacing-2xl;
+
+        h2 {
+            font-size: $font-size-2xl;
+            font-weight: 700;
+            color: $text-primary;
+            margin-bottom: $spacing-sm;
+        }
+
+        p {
+            font-size: $font-size-base;
+            color: $text-secondary;
+        }
+    }
+
+    .cases-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: $spacing-lg;
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+
+    .case-card {
+        background: $bg-primary;
+        border-radius: $radius-lg;
+        padding: $spacing-xl;
+        border: 1px solid $border-color;
+        transition: box-shadow $transition-base;
+
+        &:hover {
+            box-shadow: $shadow-md;
+        }
+
+        .case-icon {
+            font-size: 2.5rem;
+            margin-bottom: $spacing-md;
+            display: block;
+        }
+
+        .case-title {
+            font-size: $font-size-lg;
+            font-weight: 700;
+            color: $text-primary;
+            margin-bottom: $spacing-sm;
+        }
+
+        .case-description {
+            font-size: $font-size-sm;
+            color: $text-secondary;
+            line-height: 1.7;
+            margin-bottom: $spacing-md;
+        }
+
+        .case-result {
+            display: flex;
+            align-items: flex-start;
+            gap: $spacing-sm;
+            background: $accent-green-light;
+            border-radius: $radius-sm;
+            padding: $spacing-md;
+
+            .case-result-icon {
+                font-size: $font-size-base;
+                flex-shrink: 0;
+            }
+
+            .case-result-text {
+                font-size: $font-size-xs;
+                color: $accent-green;
+                font-weight: 500;
+                line-height: 1.5;
+            }
+        }
+    }
+}
+
+// ── Cómo funciona ────────────────────────────────────────────
+.landing-how {
+    padding: 64px $spacing-xl;
+    max-width: 800px;
+    margin: 0 auto;
+    text-align: center;
+
+    h2 {
+        font-size: $font-size-2xl;
+        font-weight: 700;
+        color: $text-primary;
+        margin-bottom: $spacing-sm;
+    }
+
+    .how-subtitle {
+        font-size: $font-size-base;
+        color: $text-secondary;
+        margin-bottom: $spacing-2xl;
+    }
+
+    .how-steps {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: $spacing-lg;
+        text-align: left;
+    }
+
+    .how-step {
+        position: relative;
+
+        .step-number {
+            width: 36px;
+            height: 36px;
+            background: $accent-green;
+            color: white;
+            border-radius: $radius-full;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: $font-size-sm;
+            font-weight: 700;
+            margin-bottom: $spacing-md;
+        }
+
+        .step-title {
+            font-size: $font-size-base;
+            font-weight: 600;
+            color: $text-primary;
+            margin-bottom: $spacing-xs;
+        }
+
+        .step-description {
+            font-size: $font-size-sm;
+            color: $text-secondary;
+            line-height: 1.6;
+        }
+    }
+}
+
+// ── Pricing ──────────────────────────────────────────────────
+.landing-pricing {
+    padding: 64px $spacing-xl;
+    background: $bg-card;
+    border-top: 1px solid $border-color;
+    border-bottom: 1px solid $border-color;
+
+    .pricing-header {
+        text-align: center;
+        margin-bottom: $spacing-2xl;
+
+        h2 {
+            font-size: $font-size-2xl;
+            font-weight: 700;
+            color: $text-primary;
+            margin-bottom: $spacing-sm;
+        }
+
+        p {
+            font-size: $font-size-base;
+            color: $text-secondary;
+        }
+    }
+
+    .pricing-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: $spacing-lg;
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .pricing-card {
+        background: $bg-primary;
+        border-radius: $radius-lg;
+        padding: $spacing-xl;
+        border: 1.5px solid $border-color;
+        transition: all $transition-base;
+
+        &.featured {
+            border-color: $accent-green;
+            background: $bg-card;
+            box-shadow: $shadow-md;
+            position: relative;
+
+            .featured-badge {
+                position: absolute;
+                top: -12px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: $accent-green;
+                color: white;
+                font-size: $font-size-xs;
+                font-weight: 600;
+                padding: 4px $spacing-md;
+                border-radius: $radius-xl;
+                white-space: nowrap;
+            }
+        }
+
+        .plan-name {
+            font-size: $font-size-lg;
+            font-weight: 700;
+            color: $text-primary;
+            margin-bottom: $spacing-xs;
+        }
+
+        .plan-price {
+            margin-bottom: $spacing-lg;
+
+            .price-amount {
+                font-size: 2rem;
+                font-weight: 800;
+                color: $text-primary;
+            }
+
+            .price-period {
+                font-size: $font-size-sm;
+                color: $text-muted;
+            }
+        }
+
+        .plan-features {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 $spacing-xl;
+
+            li {
+                display: flex;
+                align-items: center;
+                gap: $spacing-sm;
+                font-size: $font-size-sm;
+                color: $text-secondary;
+                padding: $spacing-xs 0;
+
+                &::before {
+                    content: '✓';
+                    color: $accent-green;
+                    font-weight: 700;
+                    flex-shrink: 0;
+                }
+
+                &.disabled {
+                    color: $text-muted;
+                    text-decoration: line-through;
+
+                    &::before {
+                        content: '×';
+                        color: $text-muted;
+                    }
+                }
+            }
+        }
+
+        .plan-cta {
+            @include btn-base;
+            width: 100%;
+            text-decoration: none;
+            justify-content: center;
+            padding: $spacing-md;
+            border-radius: $radius-md;
+            font-size: $font-size-sm;
+
+            &.cta-primary {
+                background: $accent-green;
+                color: white;
+                border: none;
+
+                &:hover {
+                    background: darken($accent-green, 8%);
+                }
+            }
+
+            &.cta-secondary {
+                background: transparent;
+                color: $text-primary;
+                border: 1.5px solid $border-color;
+
+                &:hover {
+                    border-color: $accent-green;
+                    color: $accent-green;
+                }
+            }
+        }
+    }
+}
+
+// ── CTA Final ────────────────────────────────────────────────
+.landing-cta {
+    padding: 80px $spacing-xl;
+    text-align: center;
+    max-width: 600px;
+    margin: 0 auto;
+
+    h2 {
+        font-size: $font-size-2xl;
+        font-weight: 700;
+        color: $text-primary;
+        margin-bottom: $spacing-md;
+    }
+
+    p {
+        font-size: $font-size-base;
+        color: $text-secondary;
+        margin-bottom: $spacing-xl;
+    }
+
+    .btn-cta-final {
+        @include btn-base;
+        background: $accent-green;
+        color: white;
+        padding: $spacing-md $spacing-2xl;
+        font-size: $font-size-lg;
+        text-decoration: none;
+        border-radius: $radius-lg;
+        border: none;
+
+        &:hover {
+            background: darken($accent-green, 8%);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba($accent-green, 0.3);
+        }
+    }
+}
+
+// ── Footer ───────────────────────────────────────────────────
+.landing-footer {
+    background: $bg-card;
+    border-top: 1px solid $border-color;
+    padding: $spacing-xl;
+    text-align: center;
+
+    .footer-links {
+        display: flex;
+        justify-content: center;
+        gap: $spacing-lg;
+        margin-bottom: $spacing-md;
+        flex-wrap: wrap;
+
+        a {
+            font-size: $font-size-sm;
+            color: $text-muted;
+            text-decoration: none;
+
+            &:hover {
+                color: $accent-green;
+            }
+        }
+    }
+
+    .footer-copy {
+        font-size: $font-size-xs;
+        color: $text-muted;
+    }
+}

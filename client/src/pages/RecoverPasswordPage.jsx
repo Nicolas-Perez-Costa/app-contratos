@@ -23,7 +23,7 @@ function RecoverPasswordPage() {
     const [confirmPassword, setConfirmPassword] = useState('');
 
     if (!email) {
-        return <Navigate to="/" replace />;
+        return <Navigate to="/login" replace />;
     }
 
     const handleResendCode = async () => {
@@ -108,7 +108,7 @@ function RecoverPasswordPage() {
             }
 
             // Exito -> ir a login
-            navigate('/', { replace: true });
+            navigate('/login', { replace: true });
         } catch (err) {
             setError('Error de conexión.');
         } finally {
