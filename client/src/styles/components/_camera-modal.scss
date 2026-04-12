@@ -1,0 +1,174 @@
+@use '../variables' as *;
+@use '../mixins' as *;
+
+.camera-overlay {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    z-index: 3000;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.camera-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: $spacing-md $spacing-lg;
+    background: rgba(0, 0, 0, 0.7);
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+
+    .camera-title {
+        color: white;
+        font-size: $font-size-base;
+        font-weight: 600;
+        font-family: $font-family;
+    }
+
+    .camera-close-btn {
+        background: rgba(255, 255, 255, 0.15);
+        border: none;
+        border-radius: $radius-full;
+        width: 36px;
+        height: 36px;
+        color: white;
+        font-size: $font-size-lg;
+        cursor: pointer;
+        @include flex-center;
+        transition: background $transition-fast;
+
+        &:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+    }
+}
+
+.camera-video-wrapper {
+    flex: 1;
+    position: relative;
+    @include flex-center;
+    background: #000;
+
+    video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .camera-loading {
+        color: white;
+        font-family: $font-family;
+        font-size: $font-size-sm;
+        text-align: center;
+
+        p {
+            margin-top: $spacing-sm;
+            color: rgba(255, 255, 255, 0.7);
+        }
+    }
+
+    .camera-error {
+        color: white;
+        font-family: $font-family;
+        text-align: center;
+        padding: $spacing-xl;
+
+        .error-icon {
+            font-size: 3rem;
+            display: block;
+            margin-bottom: $spacing-md;
+        }
+
+        h3 {
+            font-size: $font-size-lg;
+            margin-bottom: $spacing-sm;
+        }
+
+        p {
+            font-size: $font-size-sm;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.6;
+        }
+    }
+}
+
+.camera-footer {
+    background: rgba(0, 0, 0, 0.85);
+    padding: $spacing-lg $spacing-xl;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $spacing-md;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding-bottom: calc($spacing-lg + env(safe-area-inset-bottom, 0px));
+
+    .camera-flip-btn {
+        background: rgba(255, 255, 255, 0.15);
+        border: none;
+        border-radius: $radius-full;
+        width: 52px;
+        height: 52px;
+        color: white;
+        font-size: 1.4rem;
+        cursor: pointer;
+        @include flex-center;
+        transition: all $transition-fast;
+        flex-shrink: 0;
+
+        &:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        &:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+    }
+
+    .camera-capture-btn {
+        width: 72px;
+        height: 72px;
+        border-radius: $radius-full;
+        background: white;
+        border: 4px solid rgba(255, 255, 255, 0.5);
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: all $transition-fast;
+        outline: 3px solid white;
+        outline-offset: 3px;
+        @include flex-center;
+
+        &:hover {
+            transform: scale(1.05);
+        }
+
+        &:active {
+            transform: scale(0.95);
+        }
+
+        &:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .capture-inner {
+            width: 52px;
+            height: 52px;
+            border-radius: $radius-full;
+            background: white;
+        }
+    }
+
+    .camera-spacer {
+        width: 52px;
+        flex-shrink: 0;
+    }
+}
