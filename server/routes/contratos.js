@@ -8,6 +8,7 @@ const path = require('path');
 const { validateBody, validateParams, validateQuery } = require('../middleware/validate');
 const { crearContratoSchema, actualizarContratoSchema, firmarContratoSchema, idContratoParamSchema, paginacionQuerySchema, pdfQuerySchema } = require('../validators/contratos');
 const { sanitizeObject } = require('../utils/sanitize');
+const logAccion = require('../utils/logAccion');
 const logger = require('../config/logger');
 const { contratosLimiter, previewPublicoLimiter } = require('../config/rateLimiters');
 
@@ -214,6 +215,35 @@ router.post('/', validateBody(crearContratoSchema), async (req, res) => {
     } catch (err) {
         logger.error('Error en POST /contratos: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error interno del servidor.' });
+    }
+});
+
+// ── GET /api/contratos/:id/log ──────────────────────────────
+router.get('/:id/log', validateParams(idContratoParamSchema), async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Verificar que el contrato pertenece al usuario autenticado
+        const ownership = await pool.query(
+            'SELECT id_contrato FROM contratos WHERE id_contrato = $1 AND id_usuario = $2',
+            [id, req.session.userId]
+        );
+        if (ownership.rows.length === 0) {
+            return res.status(404).json({ error: 'Contrato no encontrado.' });
+        }
+
+        const result = await pool.query(
+            `SELECT id, accion, metadata, created_at, id_usuario
+             FROM contrato_logs
+             WHERE id_contrato = $1
+             ORDER BY created_at DESC
+             LIMIT 100`,
+            [id]
+        );
+        res.json({ log: result.rows });
+    } catch (err) {
+        logger.error('Error en GET /contratos/:id/log: ' + err.message, { error: err });
+        res.status(500).json({ error: 'Error al obtener historial del contrato.' });
     }
 });
 

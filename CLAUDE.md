@@ -58,9 +58,22 @@ Layered architecture: **Routes → Middleware → Services → DB Pool**
 No global state library — all state via React hooks. All API calls use `fetch()` with `credentials: 'include'` for session cookies.
 
 - `App.jsx` — React Router v6 config; all routes defined here
-- `pages/` — One component per route (LoginPage, HomePage, TemplatePage, ContractFormPage, SignaturePage, ProfilePage, AdminDashboardPage, AdminUsuariosPage, AdminUsuarioDetallePage, etc.)
-- `components/` — Shared UI: Navbar, ActionMenu (context menu), ContractListItem, TemplatePickerModal, UpgradeModal, StatCard
-- `styles/` — SCSS with variables/mixins; component-scoped files
+- `pages/` — One component per route:
+  - `LoginPage`, `RegisterPage`, `RecoverPasswordPage` — Auth flow
+  - `HomePage` — Dashboard / contract list
+  - `LandingPage` — Public marketing page
+  - `TemplatePage` — Template builder
+  - `ContractFormPage`, `ContractEditPage` — Contract creation and editing
+  - `SignaturePage` — Client-facing signature canvas (`/firmar/:id`)
+  - `ProfilePage` — User settings
+  - `AdminDashboardPage`, `AdminUsuariosPage`, `AdminUsuarioDetallePage` — Admin panel
+  - `PrivacidadPage`, `TerminosPage` — Legal pages
+  - `NotFoundPage` — 404
+- `components/` — Shared UI:
+  - `Navbar`, `ActionMenu` (context menu), `ContractListItem`, `StatCard`
+  - `TemplatePickerModal`, `UpgradeModal`, `FirmaDualModal`, `CameraModal`, `ContratoLogModal`
+  - `OnboardingWizard`, `UsageBanner`
+- `styles/` — SCSS with `_variables.scss`, `_mixins.scss`, `global.scss`; component-scoped files under `styles/components/`
 
 ### Key Data Flows
 
@@ -74,6 +87,9 @@ No global state library — all state via React hooks. All API calls use `fetch(
 - `DATABASE_URL` — Neon PostgreSQL connection string
 - `SESSION_SECRET`
 - `PORT` (default 4000)
-- `MERCADOPAGO_ACCESS_TOKEN`
-- `TWILIO_*` — WhatsApp integration credentials
+- `APP_URL` / `APP_BASE_URL` — Public base URL of the app
+- `MP_ACCESS_TOKEN` — MercadoPago access token for subscriptions
+- `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM` — WhatsApp via Twilio
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` — Transactional email
 - `STORAGE_PROVIDER` — `local` or `s3`
+- `SENTRY_DSN` — Error tracking (optional)
