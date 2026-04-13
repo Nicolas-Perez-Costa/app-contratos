@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TemplatePickerModal from './TemplatePickerModal';
 import UpgradeModal from './UpgradeModal';
+import UsageBanner from './UsageBanner';
 import '../styles/components/_cards.scss';
 
 function Navbar({ usuario }) {
@@ -34,6 +35,7 @@ function Navbar({ usuario }) {
 
     return (
         <>
+            <UsageBanner usuario={usuario} />
             <nav className="navbar">
                 <button className="nav-item" onClick={handleNuevoContrato}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
