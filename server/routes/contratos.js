@@ -481,6 +481,8 @@ router.get('/:id/pdf', validateParams(idContratoParamSchema), validateQuery(pdfQ
             bloques,
             datos,
             firmaBase64: contrato.firma_digital || null,
+            firmaRepresentanteBase64: contrato.firma_representante || null,
+            nombreRepresentante: contrato.nombre_representante || null,
             nombreEmpresa: empresa.nombre_empresa || null,
             logoUrl: empresa.logo_url || null,
             marcaAgua: contrato.marca_agua || null,
