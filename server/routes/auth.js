@@ -5,11 +5,7 @@ const { validateBody } = require('../middleware/validate');
 const { registerSchema, loginSchema, passwordChangeSchema, forgotPasswordSchema, validateCodeSchema, resetPasswordSchema, verifyEmailSchema } = require('../validators/auth');
 const { loginLimiter, registerLimiter, passwordLimiter } = require('../middleware/rateLimiter');
 const logger = require('../config/logger');
-const { authLimiter } = require('../config/rateLimiters');
 const router = express.Router();
-
-// Rate limiting global del router
-router.use(authLimiter);
 
 // ── POST /api/auth/register ─────────────────────────────────
 router.post('/register', registerLimiter, validateBody(registerSchema), async (req, res) => {
@@ -258,7 +254,12 @@ router.put('/password', passwordLimiter, validateBody(passwordChangeSchema), asy
         const salt = await bcrypt.genSalt(12);
         const nuevoHash = await bcrypt.hash(contrasena_nueva, salt);
 
-        await pool.query('UPDATE usuarios SET contrasena_hash = $1 WHERE id_usuario = $2', [nuevoHash, req.session.userId]);
+        const updateResult = await pool.query('UPDATE usuarios SET contrasena_hash = $1 WHERE id_usuario = $2', [nuevoHash, req.session.userId]);
+
+        if (updateResult.rowCount === 0) {
+            logger.error('Password update affected 0 rows', { userId: req.session.userId });
+            return res.status(500).json({ error: 'No se pudo actualizar la contraseña. Intenta nuevamente.' });
+        }
 
         res.json({ message: 'Contraseña actualizada exitosamente.' });
     } catch (err) {
