@@ -78,6 +78,9 @@ CREATE TABLE IF NOT EXISTS contratos (
 -- Columnas adicionales para contratos (Tarea 2: teléfono como identificador)
 ALTER TABLE contratos ADD COLUMN IF NOT EXISTS cliente_numero VARCHAR(30);
 ALTER TABLE contratos ADD COLUMN IF NOT EXISTS cliente_nombre VARCHAR(255);
+ALTER TABLE contratos ADD COLUMN IF NOT EXISTS firma_doble BOOLEAN DEFAULT FALSE;
+ALTER TABLE contratos ADD COLUMN IF NOT EXISTS firma_representante TEXT;
+ALTER TABLE contratos ADD COLUMN IF NOT EXISTS nombre_representante VARCHAR(255);
 
 -- =============================================
 -- Pagos (Auditoría de pagos MercadoPago)
@@ -123,3 +126,20 @@ ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS codigo_verificacion_expira TIMESTA
 
 -- Columna para onboarding wizard
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS onboarding_completado BOOLEAN DEFAULT FALSE;
+
+-- =============================================
+-- Logs de Contratos (Audit Trail)
+-- =============================================
+CREATE TABLE IF NOT EXISTS contrato_logs (
+    id SERIAL PRIMARY KEY,
+    id_contrato INT,
+    id_usuario UUID,
+    accion VARCHAR(50) NOT NULL,
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_contrato) REFERENCES contratos(id_contrato) ON DELETE SET NULL,
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_contrato_logs_contrato ON contrato_logs(id_contrato);
+CREATE INDEX IF NOT EXISTS idx_contrato_logs_usuario ON contrato_logs(id_usuario);

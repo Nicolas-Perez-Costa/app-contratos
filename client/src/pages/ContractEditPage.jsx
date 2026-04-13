@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import imageCompression from 'browser-image-compression';
 import CameraModal from '../components/CameraModal';
 import '../styles/components/_pages.scss';
+import '../styles/components/_firma-dual.scss';
 
 const COMPRESSION_OPTIONS = {
     maxSizeMB: 0.5,
@@ -24,6 +25,7 @@ function ContractEditPage() {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     const [camaraAbierta, setCamaraAbierta] = useState(null); // variable del bloque activo o null
+    const [firmaDoble, setFirmaDoble] = useState(false);
 
     const galleryRefs = useRef({});
 
@@ -56,6 +58,7 @@ function ContractEditPage() {
 
             setBloques(bloquesParseados);
             setTitulo(data.contrato.titulo_contrato);
+            setFirmaDoble(data.contrato.firma_doble || false);
 
             // Build text fields
             const datosTexto = {};
@@ -317,6 +320,7 @@ function ContractEditPage() {
                 body: JSON.stringify({
                     titulo_contrato: titulo,
                     datos_ingresados: datosCompletos,
+                    firma_doble: firmaDoble,
                 }),
             });
 
@@ -498,6 +502,23 @@ function ContractEditPage() {
                     )}
                 </div>
             ))}
+
+            <div className="firma-doble-toggle">
+                <div className="toggle-info">
+                    <span className="toggle-label">✍️ Firma doble</span>
+                    <span className="toggle-description">
+                        Al firmar deberán firmar tanto el cliente como el representante
+                    </span>
+                </div>
+                <label className="toggle-switch">
+                    <input
+                        type="checkbox"
+                        checked={firmaDoble}
+                        onChange={(e) => setFirmaDoble(e.target.checked)}
+                    />
+                    <span className="toggle-slider" />
+                </label>
+            </div>
 
             <button className="submit-btn" onClick={guardar} disabled={saving}>
                 {saving ? 'Guardando cambios...' : '💾 Guardar Cambios'}

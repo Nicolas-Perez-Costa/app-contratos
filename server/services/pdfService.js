@@ -47,7 +47,7 @@ async function fetchImageBuffer(url) {
  * @param {string|null} opciones.footerTexto - Texto de pie de página personalizado
  * @returns {Promise<Buffer>} Buffer del PDF generado
  */
-async function generarPDFContrato({ contrato, bloques = [], datos = {}, firmaBase64 = null, nombreEmpresa = null, logoUrl = null, marcaAgua = null, brandingLogoUrl = null, logoPosicion = null, footerTexto = null }) {
+async function generarPDFContrato({ contrato, bloques = [], datos = {}, firmaBase64 = null, firmaRepresentanteBase64 = null, nombreRepresentante = null, nombreEmpresa = null, logoUrl = null, marcaAgua = null, brandingLogoUrl = null, logoPosicion = null, footerTexto = null }) {
     if (!datos) datos = {};
     if (!bloques) bloques = [];
 
@@ -92,7 +92,7 @@ async function generarPDFContrato({ contrato, bloques = [], datos = {}, firmaBas
         await _renderBloques(doc, bloques, datos);
 
         // ── Firma digital ──
-        await _renderFirma(doc, firmaBase64, contrato);
+        await _renderFirma(doc, firmaBase64, contrato, firmaRepresentanteBase64, nombreRepresentante);
 
         // ── Datos del cliente (solo si firmado, después de firma) ──
         if (contrato.estado === 'Firmado') {
@@ -263,63 +263,115 @@ async function _renderBloqueImagen(doc, bloque, datos) {
     doc.moveDown(0.5);
 }
 
-async function _renderFirma(doc, firmaBase64, contrato) {
-    // Solo renderizar si hay firma
-    if (!firmaBase64) return;
+async function _renderFirma(doc, firmaBase64, contrato, firmaRepresentanteBase64 = null, nombreRepresentante = null) {
+    const tieneFirmaCliente = !!firmaBase64;
+    const tieneFirmaRep = !!firmaRepresentanteBase64;
 
-    // Salto de página si queda poco espacio para firma + metadata
-    if (doc.y > 550) doc.addPage();
+    if (!tieneFirmaCliente && !tieneFirmaRep) return;
+
+    if (doc.y > 500) doc.addPage();
 
     doc.moveDown(2);
-
-    // Línea separadora antes de la firma
     doc.moveTo(50, doc.y).lineTo(545, doc.y).strokeColor('#CCCCCC').lineWidth(0.5).stroke();
     doc.moveDown(1);
 
-    doc.fontSize(12).font('Helvetica-Bold').fillColor('#000000').text('Firma del cliente:');
-    doc.moveDown(0.5);
+    const firmasDual = tieneFirmaCliente && tieneFirmaRep;
+    const anchoFirma = firmasDual ? 220 : 450;
+    const altoFirma = firmasDual ? 130 : 220;
 
-    try {
-        let firmaBuffer = null;
-        if (firmaBase64.startsWith('http://') || firmaBase64.startsWith('https://')) {
-            firmaBuffer = await fetchImageBuffer(firmaBase64);
-            if (!firmaBuffer) {
-                logger.warn('_renderFirma: no se pudo obtener imagen de firma desde URL');
-                return;
+    if (firmasDual) {
+        // ── Dos firmas lado a lado ──
+        doc.fontSize(10).font('Helvetica-Bold').fillColor('#000000');
+
+        // Labels
+        const yLabels = doc.y;
+        doc.text('Firma del cliente:', 60, yLabels);
+        doc.text('Firma del representante:', 310, yLabels);
+        doc.moveDown(0.5);
+
+        const yFirmas = doc.y;
+
+        // Firma cliente (izquierda)
+        try {
+            let firmaClienteBuffer = null;
+            if (firmaBase64.startsWith('http://') || firmaBase64.startsWith('https://')) {
+                firmaClienteBuffer = await fetchImageBuffer(firmaBase64);
+            } else {
+                const base64Data = firmaBase64.replace(/^data:image\/\w+;base64,/, '');
+                firmaClienteBuffer = Buffer.from(base64Data, 'base64');
             }
-        } else {
-            const base64Data = firmaBase64.replace(/^data:image\/\w+;base64,/, '');
-            firmaBuffer = Buffer.from(base64Data, 'base64');
+            if (firmaClienteBuffer) {
+                doc.image(firmaClienteBuffer, 60, yFirmas, { width: anchoFirma, height: altoFirma, fit: [anchoFirma, altoFirma] });
+            }
+        } catch (err) {
+            logger.warn('Error insertando firma cliente en PDF dual: ' + err.message, { error: err });
         }
 
-        // Chequeo de espacio antes de insertar la firma
-        if (doc.y > 600) doc.addPage();
+        // Firma representante (derecha)
+        try {
+            let firmaRepBuffer = null;
+            if (firmaRepresentanteBase64.startsWith('http://') || firmaRepresentanteBase64.startsWith('https://')) {
+                firmaRepBuffer = await fetchImageBuffer(firmaRepresentanteBase64);
+            } else {
+                const base64Data = firmaRepresentanteBase64.replace(/^data:image\/\w+;base64,/, '');
+                firmaRepBuffer = Buffer.from(base64Data, 'base64');
+            }
+            if (firmaRepBuffer) {
+                doc.image(firmaRepBuffer, 310, yFirmas, { width: anchoFirma, height: altoFirma, fit: [anchoFirma, altoFirma] });
+            }
+        } catch (err) {
+            logger.warn('Error insertando firma representante en PDF dual: ' + err.message, { error: err });
+        }
 
-        // Insertar la imagen de la firma real en el PDF
-        doc.image(firmaBuffer, {
-            width: 500,
-            height: 250,
-            fit: [500, 250],
-        });
-        doc.moveDown(1); // Espacio después de la imagen
+        // Mover cursor debajo de ambas firmas
+        doc.y = yFirmas + altoFirma + 12;
 
+        // Datos debajo de cada firma
+        doc.fontSize(9).font('Helvetica').fillColor('#333333');
 
+        // Datos cliente (izquierda)
+        const datosCliente = [
+            contrato.cliente_nombre,
+            contrato.email_cliente,
+            contrato.cliente_numero,
+        ].filter(Boolean);
+        if (datosCliente.length > 0) {
+            doc.text(datosCliente.join(' · '), 60, doc.y, { width: anchoFirma });
+        }
 
-        // Fecha de firma
+        // Datos representante (derecha)
+        if (nombreRepresentante) {
+            doc.text(nombreRepresentante, 310, doc.y - (doc.currentLineHeight() * datosCliente.length || 0), { width: anchoFirma });
+        }
+
+    } else {
+        // ── Firma única (comportamiento original) ──
+        doc.fontSize(12).font('Helvetica-Bold').fillColor('#000000')
+           .text('Firma del cliente:');
+        doc.moveDown(0.5);
+
+        try {
+            let firmaBuffer = null;
+            if (firmaBase64.startsWith('http://') || firmaBase64.startsWith('https://')) {
+                firmaBuffer = await fetchImageBuffer(firmaBase64);
+            } else {
+                const base64Data = firmaBase64.replace(/^data:image\/\w+;base64,/, '');
+                firmaBuffer = Buffer.from(base64Data, 'base64');
+            }
+            if (firmaBuffer) {
+                doc.image(firmaBuffer, { width: 500, height: 250, fit: [500, 250] });
+            }
+        } catch (firmaErr) {
+            logger.error('Error insertando firma en PDF: ' + firmaErr.message, { error: firmaErr });
+        }
+
+        doc.moveDown(1);
         const fechaFirma = new Date().toLocaleDateString('es-AR', {
-            day: '2-digit',
-            month: 'long',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
+            day: '2-digit', month: 'long', year: 'numeric',
+            hour: '2-digit', minute: '2-digit',
         });
         doc.fontSize(9).font('Helvetica').fillColor('#333333')
-            .text(`Firmado digitalmente el ${fechaFirma}`);
-
-    } catch (firmaErr) {
-        logger.error('Error insertando firma en PDF: ' + firmaErr.message, { error: firmaErr });
-        doc.fontSize(10).font('Helvetica').fillColor('#CC0000')
-           .text('[Error al procesar la imagen de firma]');
+           .text(`Firmado digitalmente el ${fechaFirma}`);
     }
 }
 

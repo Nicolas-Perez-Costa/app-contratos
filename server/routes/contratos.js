@@ -81,7 +81,7 @@ router.get('/', validateQuery(paginacionQuerySchema), async (req, res) => {
 
 // ── POST /api/contratos ─────────────────────────────────────
 router.post('/', validateBody(crearContratoSchema), async (req, res) => {
-    const { id_plantilla, titulo_contrato, datos_ingresados, email_cliente } = req.body;
+    const { id_plantilla, titulo_contrato, datos_ingresados, email_cliente, firma_doble } = req.body;
 
     try {
         // Verificar límite freemium
@@ -129,11 +129,12 @@ router.post('/', validateBody(crearContratoSchema), async (req, res) => {
             await client.query('BEGIN');
 
             const result = await client.query(
-                `INSERT INTO contratos (id_usuario, id_plantilla, titulo_contrato, datos_ingresados, email_cliente, estructura_bloques, marca_agua, logo_url, logo_posicion, footer_texto)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                `INSERT INTO contratos (id_usuario, id_plantilla, titulo_contrato, datos_ingresados, email_cliente, estructura_bloques, marca_agua, logo_url, logo_posicion, footer_texto, firma_doble)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING *`,
                 [req.session.userId, id_plantilla || null, titulo_contrato, JSON.stringify(datos_ingresados || {}), email_cliente || null, bloquesCopia,
-                 plantilla.marca_agua || null, plantilla.logo_url || null, plantilla.logo_posicion || null, plantilla.footer_texto || null]
+                 plantilla.marca_agua || null, plantilla.logo_url || null, plantilla.logo_posicion || null, plantilla.footer_texto || null,
+                 firma_doble || false]
             );
 
             // Incrementar contador
@@ -188,7 +189,7 @@ router.get('/:id', validateParams(idContratoParamSchema), async (req, res) => {
 
 // ── PUT /api/contratos/:id ──────────────────────────────────
 router.put('/:id', validateParams(idContratoParamSchema), validateBody(actualizarContratoSchema), async (req, res) => {
-    const { titulo_contrato, datos_ingresados, email_cliente } = req.body;
+    const { titulo_contrato, datos_ingresados, email_cliente, firma_doble } = req.body;
 
     try {
         // Verificar que el contrato existe y es del usuario
@@ -209,11 +210,16 @@ router.put('/:id', validateParams(idContratoParamSchema), validateBody(actualiza
             `UPDATE contratos SET
         titulo_contrato = COALESCE($1, titulo_contrato),
         datos_ingresados = COALESCE($2, datos_ingresados),
-        email_cliente = COALESCE($3, email_cliente)
-       WHERE id_contrato = $4 AND id_usuario = $5
+        email_cliente = COALESCE($3, email_cliente),
+        firma_doble = COALESCE($4, firma_doble)
+       WHERE id_contrato = $5 AND id_usuario = $6
        RETURNING *`,
-            [titulo_contrato, datos_ingresados ? JSON.stringify(datos_ingresados) : null, email_cliente, req.params.id, req.session.userId]
+            [titulo_contrato, datos_ingresados ? JSON.stringify(datos_ingresados) : null, email_cliente, firma_doble, req.params.id, req.session.userId]
         );
+
+        await logAccion(req.params.id, req.session.userId, 'editado', {
+            campos_modificados: Object.keys(req.body).filter(k => req.body[k] !== undefined),
+        });
 
         res.json({ contrato: result.rows[0] });
     } catch (err) {
@@ -262,7 +268,7 @@ router.delete('/:id', validateParams(idContratoParamSchema), async (req, res) =>
 
 // ── POST /api/contratos/:id/firmar ──────────────────────────
 router.post('/:id/firmar', validateParams(idContratoParamSchema), validateBody(firmarContratoSchema), async (req, res) => {
-    const { firma_base64, cliente_numero, cliente_nombre, email_cliente } = req.body;
+    const { firma_base64, cliente_numero, cliente_nombre, email_cliente, firma_representante_base64, nombre_representante } = req.body;
 
     // Número ya validado por Zod (8-15 dígitos)
     const numeroLimpio = cliente_numero || null;
@@ -300,6 +306,18 @@ router.post('/:id/firmar', validateParams(idContratoParamSchema), validateBody(f
             }
         }
 
+        let firmaRepresentanteUrl = null;
+        if (firma_representante_base64) {
+            try {
+                const datosBase64Rep = firma_representante_base64.replace(/^data:image\/\w+;base64,/, '');
+                const firmaRepBuffer = Buffer.from(datosBase64Rep, 'base64');
+                const firmaRepKey = `firmas/firma_rep_${contrato.id_contrato}_${Date.now()}.png`;
+                firmaRepresentanteUrl = await storageService.uploadFile(firmaRepBuffer, firmaRepKey);
+            } catch (uploadErr) {
+                logger.error('Error subiendo firma representante a R2: ' + uploadErr.message, { error: uploadErr });
+            }
+        }
+
         // Actualizar contrato: estado, firma, datos del cliente
         await pool.query(
             `UPDATE contratos SET
@@ -307,13 +325,17 @@ router.post('/:id/firmar', validateParams(idContratoParamSchema), validateBody(f
                 firma_digital = $1,
                 cliente_numero = $2,
                 cliente_nombre = $3,
-                email_cliente = $4
-            WHERE id_contrato = $5`,
+                email_cliente = $4,
+                firma_representante = $5,
+                nombre_representante = $6
+            WHERE id_contrato = $7`,
             [
                 firmaUrl,
                 numeroLimpio,
                 cliente_nombre || null,
                 email_cliente || null,
+                firmaRepresentanteUrl,
+                nombre_representante || null,
                 contrato.id_contrato,
             ]
         );
@@ -341,6 +363,8 @@ router.post('/:id/firmar', validateParams(idContratoParamSchema), validateBody(f
                 bloques,
                 datos,
                 firmaBase64: firmaUrl,
+                firmaRepresentanteBase64: firmaRepresentanteUrl,
+                nombreRepresentante: nombre_representante || null,
                 nombreEmpresa: empresa.nombre_empresa,
                 logoUrl: empresa.logo_url,
                 marcaAgua: contrato.marca_agua || null,

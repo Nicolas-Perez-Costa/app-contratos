@@ -1,0 +1,287 @@
+@use '../variables' as *;
+@use '../mixins' as *;
+
+// ── Toggle firma doble ───────────────────────────────────────
+.firma-doble-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: $spacing-md $spacing-lg;
+    background: $bg-card;
+    border: 1.5px solid $border-color;
+    border-radius: $radius-md;
+    margin-bottom: $spacing-lg;
+    gap: $spacing-md;
+
+    .toggle-info {
+        flex: 1;
+
+        .toggle-label {
+            font-size: $font-size-sm;
+            font-weight: 600;
+            color: $text-primary;
+            display: block;
+            margin-bottom: 2px;
+        }
+
+        .toggle-description {
+            font-size: $font-size-xs;
+            color: $text-muted;
+            line-height: 1.4;
+        }
+    }
+
+    .toggle-switch {
+        position: relative;
+        width: 48px;
+        height: 26px;
+        flex-shrink: 0;
+
+        input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+            position: absolute;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            inset: 0;
+            background: $border-color;
+            border-radius: 26px;
+            cursor: pointer;
+            transition: background $transition-base;
+
+            &::before {
+                content: '';
+                position: absolute;
+                width: 20px;
+                height: 20px;
+                left: 3px;
+                top: 3px;
+                background: white;
+                border-radius: $radius-full;
+                transition: transform $transition-base;
+                box-shadow: $shadow-sm;
+            }
+        }
+
+        input:checked + .toggle-slider {
+            background: $accent-green;
+
+            &::before {
+                transform: translateX(22px);
+            }
+        }
+    }
+}
+
+// ── Modal firma dual ─────────────────────────────────────────
+.firma-dual-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 2500;
+    @include flex-center;
+    padding: $spacing-lg;
+    animation: fadeIn 0.2s ease;
+}
+
+.firma-dual-modal {
+    background: $bg-card;
+    border-radius: $radius-xl;
+    padding: $spacing-xl;
+    width: 100%;
+    max-width: 440px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: $shadow-lg;
+    animation: slideUp 0.25s ease;
+
+    .firma-dual-header {
+        text-align: center;
+        margin-bottom: $spacing-xl;
+
+        h2 {
+            font-size: $font-size-xl;
+            font-weight: 700;
+            color: $text-primary;
+            margin-bottom: $spacing-xs;
+        }
+
+        p {
+            font-size: $font-size-sm;
+            color: $text-secondary;
+        }
+    }
+
+    .firma-dual-section {
+        border: 1.5px solid $border-color;
+        border-radius: $radius-md;
+        overflow: hidden;
+        margin-bottom: $spacing-md;
+        transition: border-color $transition-fast;
+
+        &.active {
+            border-color: $accent-green;
+        }
+
+        .firma-dual-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: $spacing-md $spacing-lg;
+            background: $bg-primary;
+            cursor: pointer;
+            user-select: none;
+
+            .section-title {
+                font-size: $font-size-sm;
+                font-weight: 600;
+                color: $text-primary;
+                display: flex;
+                align-items: center;
+                gap: $spacing-sm;
+            }
+
+            .section-status {
+                font-size: $font-size-xs;
+                font-weight: 600;
+                padding: 2px $spacing-sm;
+                border-radius: $radius-xl;
+
+                &.done {
+                    background: $accent-green-light;
+                    color: $accent-green;
+                }
+
+                &.pending {
+                    background: $accent-yellow-light;
+                    color: #8B7000;
+                }
+            }
+
+            .section-chevron {
+                font-size: $font-size-base;
+                color: $text-muted;
+                transition: transform $transition-fast;
+
+                &.open {
+                    transform: rotate(180deg);
+                }
+            }
+        }
+
+        .firma-dual-section-body {
+            padding: $spacing-md $spacing-lg $spacing-lg;
+            border-top: 1px solid $border-color;
+        }
+    }
+
+    .canvas-container {
+        margin-bottom: $spacing-md;
+
+        .canvas-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: $spacing-sm;
+
+            span {
+                font-size: $font-size-sm;
+                font-weight: 600;
+                color: $text-primary;
+            }
+
+            button {
+                font-size: $font-size-xs;
+                color: $error-color;
+                background: none;
+                border: none;
+                cursor: pointer;
+                font-family: $font-family;
+                font-weight: 500;
+
+                &:hover {
+                    text-decoration: underline;
+                }
+            }
+        }
+
+        canvas {
+            width: 100%;
+            height: 140px;
+            border: 2px dashed $border-color;
+            border-radius: $radius-md;
+            cursor: crosshair;
+            touch-action: none;
+            display: block;
+        }
+    }
+
+    .firma-input-group {
+        margin-bottom: $spacing-md;
+
+        label {
+            display: block;
+            font-size: $font-size-sm;
+            font-weight: 500;
+            margin-bottom: $spacing-xs;
+            color: $text-primary;
+        }
+
+        input {
+            width: 100%;
+            padding: $spacing-sm $spacing-md;
+            border: 1.5px solid $border-color;
+            border-radius: $radius-md;
+            font-family: $font-family;
+            font-size: $font-size-sm;
+            color: $text-primary;
+            outline: none;
+            transition: border-color $transition-fast;
+
+            &:focus {
+                border-color: $accent-green;
+            }
+        }
+    }
+
+    .firma-dual-actions {
+        display: flex;
+        flex-direction: column;
+        gap: $spacing-sm;
+        margin-top: $spacing-lg;
+
+        .btn-firma-confirm {
+            @include btn-base;
+            background: $accent-green;
+            color: white;
+            width: 100%;
+            padding: $spacing-md;
+            border: none;
+            font-size: $font-size-base;
+            justify-content: center;
+
+            &:disabled {
+                background: $text-muted;
+                cursor: not-allowed;
+            }
+        }
+
+        .btn-firma-cancel {
+            background: none;
+            border: none;
+            font-family: $font-family;
+            font-size: $font-size-sm;
+            color: $text-muted;
+            cursor: pointer;
+            padding: $spacing-sm;
+            text-align: center;
+
+            &:hover {
+                color: $text-secondary;
+            }
+        }
+    }
+}

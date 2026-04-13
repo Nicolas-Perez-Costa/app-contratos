@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import ActionMenu from '../components/ActionMenu';
 import OnboardingWizard from '../components/OnboardingWizard';
+import ContratoLogModal from '../components/ContratoLogModal';
 import '../styles/components/_home.scss';
 
 function HomePage() {
@@ -19,6 +20,7 @@ function HomePage() {
     const [filtroEstado, setFiltroEstado] = useState('');
     const [buscarInput, setBuscarInput] = useState('');
     const [mostrarOnboarding, setMostrarOnboarding] = useState(false);
+    const [contratoLog, setContratoLog] = useState(null);
 
     const navigate = useNavigate();
 
@@ -179,6 +181,10 @@ function HomePage() {
                 if (contrato.estado !== 'Firmado') {
                     navigate(`/contrato/editar/${contrato.id_contrato}`);
                 }
+                break;
+
+            case 'historial':
+                setContratoLog(contrato);
                 break;
 
             case 'eliminar':
@@ -419,6 +425,13 @@ function HomePage() {
 
             {mostrarOnboarding && (
                 <OnboardingWizard onComplete={() => setMostrarOnboarding(false)} />
+            )}
+
+            {contratoLog && (
+                <ContratoLogModal
+                    contrato={contratoLog}
+                    onClose={() => setContratoLog(null)}
+                />
             )}
         </div>
     );

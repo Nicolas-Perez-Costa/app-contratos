@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import '../styles/components/_pages.scss';
+import FirmaDualModal from '../components/FirmaDualModal';
 
 function SignaturePage() {
     const { idContrato } = useParams();
@@ -17,6 +18,7 @@ function SignaturePage() {
     const [firmaAbierta, setFirmaAbierta] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
+    const [mostrarFirmaDual, setMostrarFirmaDual] = useState(false);
     const isDrawing = useRef(false);
 
     useEffect(() => {
@@ -164,6 +166,42 @@ function SignaturePage() {
         }
     };
 
+    const handleFirmaDual = async ({ firma_base64, firma_representante_base64, nombre_representante, cliente_nombre, email_cliente, cliente_numero }) => {
+        setSubmitting(true);
+        setError('');
+
+        try {
+            const body = {
+                firma_base64,
+                firma_representante_base64,
+                nombre_representante,
+                cliente_nombre: cliente_nombre || null,
+                email_cliente: email_cliente || null,
+                cliente_numero: cliente_numero || null,
+            };
+
+            const res = await fetch(`/api/contratos/${idContrato}/firmar`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(body),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                setError(data.error || 'Error al firmar.');
+                setSubmitting(false);
+                return;
+            }
+
+            navigate('/home');
+        } catch (err) {
+            setError('Error de conexión.');
+            setSubmitting(false);
+        }
+    };
+
     if (loading) {
         return (
             <div className="signature-page" style={{ justifyContent: 'center', alignItems: 'center' }}>
@@ -231,29 +269,45 @@ function SignaturePage() {
             <div className="signature-footer">
                 {error && <p style={{ color: '#E53E3E', fontSize: '13px', marginBottom: '12px', textAlign: 'center' }}>{error}</p>}
 
-                <button
-                    type="button"
-                    onClick={() => setFirmaAbierta(!firmaAbierta)}
-                    style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        padding: '10px 24px',
-                        background: firmaAbierta ? '#f0fdf4' : '#16A34A',
-                        color: firmaAbierta ? '#16A34A' : '#fff',
-                        border: firmaAbierta ? '2px solid #16A34A' : '2px solid #16A34A',
-                        borderRadius: '999px',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        fontWeight: 600,
-                        margin: '0 auto',
-                        marginBottom: firmaAbierta ? '16px' : '0',
-                        transition: 'all 0.2s ease',
-                    }}
-                >
-                    <span>{firmaAbierta ? 'Minimizar' : 'Firmar'}</span>
-                    <span style={{ fontSize: '18px', lineHeight: 1 }}>{firmaAbierta ? '−' : '+'}</span>
-                </button>
+                {contrato?.firma_doble ? (
+                    <button
+                        type="button"
+                        onClick={() => setMostrarFirmaDual(true)}
+                        style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '8px',
+                            padding: '10px 24px', background: '#16A34A', color: '#fff',
+                            border: 'none', borderRadius: '999px', cursor: 'pointer',
+                            fontSize: '14px', fontWeight: 600, margin: '0 auto',
+                            transition: 'all 0.2s ease',
+                        }}
+                    >
+                        ✍️ Firmar +
+                    </button>
+                ) : (
+                    <button
+                        type="button"
+                        onClick={() => setFirmaAbierta(!firmaAbierta)}
+                        style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            padding: '10px 24px',
+                            background: firmaAbierta ? '#f0fdf4' : '#16A34A',
+                            color: firmaAbierta ? '#16A34A' : '#fff',
+                            border: firmaAbierta ? '2px solid #16A34A' : '2px solid #16A34A',
+                            borderRadius: '999px',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            fontWeight: 600,
+                            margin: '0 auto',
+                            marginBottom: firmaAbierta ? '16px' : '0',
+                            transition: 'all 0.2s ease',
+                        }}
+                    >
+                        <span>{firmaAbierta ? 'Minimizar' : 'Firmar'}</span>
+                        <span style={{ fontSize: '18px', lineHeight: 1 }}>{firmaAbierta ? '−' : '+'}</span>
+                    </button>
+                )}
 
                 {firmaAbierta && (
                 <>
@@ -351,6 +405,13 @@ function SignaturePage() {
                 </>
                 )}
             </div>
+            {mostrarFirmaDual && (
+                <FirmaDualModal
+                    onConfirm={handleFirmaDual}
+                    onClose={() => setMostrarFirmaDual(false)}
+                    submitting={submitting}
+                />
+            )}
         </div>
     );
 }

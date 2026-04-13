@@ -12,6 +12,7 @@ const crearContratoSchema = z.object({
         z.string().email('Formato de email inválido.'),
         z.literal(''),
     ]).optional().transform(val => val === '' ? undefined : val),
+    firma_doble: z.boolean().optional().default(false),
 });
 
 // ── Esquema para actualizar contrato ──
@@ -22,6 +23,7 @@ const actualizarContratoSchema = z.object({
         z.string().email('Formato de email inválido.'),
         z.literal(''),
     ]).optional().transform(val => val === '' ? undefined : val),
+    firma_doble: z.boolean().optional(),
 });
 
 // ── Esquema para firmar contrato ──
@@ -32,6 +34,12 @@ const firmarContratoSchema = z.object({
         .refine(val => val.startsWith('data:image/') || val.length > 500, {
             message: 'La firma debe ser una imagen en formato base64.',
         }),
+    firma_representante_base64: z.string()
+        .min(200)
+        .max(5_000_000)
+        .optional()
+        .nullable(),
+    nombre_representante: z.string().trim().max(255).optional().nullable(),
     cliente_nombre: z.string().trim().max(255).optional().nullable(),
     cliente_numero: z.string().optional().nullable()
         .refine(val => {
