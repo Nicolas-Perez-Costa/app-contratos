@@ -1,32 +1,84 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import '../styles/components/_firma-dual.scss';
 
-function useCanvas(canvasRef, firmaSetterKey, hasFirmaState) {
+function FirmaCanvas({ initialDataUrl, onChange }) {
+    const canvasRef = useRef(null);
     const isDrawing = useRef(false);
+    const hasInitialized = useRef(false);
+    const onChangeRef = useRef(onChange);
+
+    useEffect(() => {
+        onChangeRef.current = onChange;
+    }, [onChange]);
 
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
 
         const ctx = canvas.getContext('2d');
-        const rect = canvas.getBoundingClientRect();
-        canvas.width = rect.width * 2;
-        canvas.height = rect.height * 2;
-        ctx.scale(2, 2);
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.strokeStyle = '#1a1a1a';
-        ctx.lineWidth = 2;
+
+        const initCanvas = () => {
+            if (hasInitialized.current) return;
+            const rect = canvas.getBoundingClientRect();
+            
+            // Esperar activamente a que el canvas reciba su tamaño de CSS (>0)
+            if (rect.width > 0 && rect.height > 0) {
+                hasInitialized.current = true;
+                
+                canvas.width = rect.width * 2;
+                canvas.height = rect.height * 2;
+                ctx.scale(2, 2);
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.strokeStyle = '#1a1a1a';
+                ctx.lineWidth = 2;
+
+                if (initialDataUrl && initialDataUrl.length > 50) {
+                    const img = new Image();
+                    img.onload = () => {
+                        ctx.drawImage(img, 0, 0, rect.width, rect.height);
+                    };
+                    img.src = initialDataUrl;
+                }
+            }
+        };
+
+        // ResizeObserver disparará automáticamente cuando el canvas deje de ser {width: 0}
+        const ro = new ResizeObserver(() => {
+            initCanvas();
+        });
+        ro.observe(canvas);
 
         const getPos = (e) => {
             const r = canvas.getBoundingClientRect();
+            // Fallback preventivo
+            if (r.width === 0) return { x: 0, y: 0 };
+            
             const touch = e.touches ? e.touches[0] : e;
             return { x: touch.clientX - r.left, y: touch.clientY - r.top };
         };
 
-        const startDraw = (e) => { e.preventDefault(); isDrawing.current = true; const pos = getPos(e); ctx.beginPath(); ctx.moveTo(pos.x, pos.y); };
-        const draw = (e) => { e.preventDefault(); if (!isDrawing.current) return; const pos = getPos(e); ctx.lineTo(pos.x, pos.y); ctx.stroke(); hasFirmaState.setter(true); };
-        const endDraw = () => { isDrawing.current = false; };
+        const startDraw = (e) => { 
+            e.preventDefault(); 
+            if (!hasInitialized.current) return;
+            isDrawing.current = true; 
+            const pos = getPos(e); 
+            ctx.beginPath(); 
+            ctx.moveTo(pos.x, pos.y); 
+        };
+        const draw = (e) => { 
+            e.preventDefault(); 
+            if (!isDrawing.current) return; 
+            const pos = getPos(e); 
+            ctx.lineTo(pos.x, pos.y); 
+            ctx.stroke(); 
+        };
+        const endDraw = () => { 
+            if (isDrawing.current) {
+                isDrawing.current = false;
+                onChangeRef.current(canvas.toDataURL('image/png'));
+            }
+        };
 
         canvas.addEventListener('mousedown', startDraw);
         canvas.addEventListener('mousemove', draw);
@@ -37,6 +89,7 @@ function useCanvas(canvasRef, firmaSetterKey, hasFirmaState) {
         canvas.addEventListener('touchend', endDraw);
 
         return () => {
+            ro.disconnect();
             canvas.removeEventListener('mousedown', startDraw);
             canvas.removeEventListener('mousemove', draw);
             canvas.removeEventListener('mouseup', endDraw);
@@ -46,6 +99,8 @@ function useCanvas(canvasRef, firmaSetterKey, hasFirmaState) {
             canvas.removeEventListener('touchend', endDraw);
         };
     }, []);
+
+    return <canvas ref={canvasRef} style={{ width: '100%', height: '140px', border: '2px dashed #e2e8f0', borderRadius: '8px', touchAction: 'none' }} />;
 }
 
 function FirmaDualModal({ onConfirm, onClose, submitting }) {
@@ -53,8 +108,8 @@ function FirmaDualModal({ onConfirm, onClose, submitting }) {
     const [seccionAbierta, setSeccionAbierta] = useState('cliente');
 
     // Estado cliente
-    const canvasClienteRef = useRef(null);
-    const [hasFirmaCliente, setHasFirmaCliente] = useState(false);
+    const [firmaClienteBase64, setFirmaClienteBase64] = useState(null);
+    const [clearClienteKey, setClearClienteKey] = useState(0);
     const [emailCliente, setEmailCliente] = useState('');
     const [nombreCliente, setNombreCliente] = useState('');
     const [codigoPais, setCodigoPais] = useState('+54');
@@ -62,38 +117,28 @@ function FirmaDualModal({ onConfirm, onClose, submitting }) {
     const [numero, setNumero] = useState('');
 
     // Estado representante
-    const canvasRepRef = useRef(null);
-    const [hasFirmaRep, setHasFirmaRep] = useState(false);
+    const [firmaRepBase64, setFirmaRepBase64] = useState(null);
+    const [clearRepKey, setClearRepKey] = useState(0);
     const [nombreRep, setNombreRep] = useState('');
 
-    useCanvas(canvasClienteRef, 'cliente', { setter: setHasFirmaCliente });
-    useCanvas(canvasRepRef, 'rep', { setter: setHasFirmaRep });
-
     const limpiarCliente = () => {
-        const canvas = canvasClienteRef.current;
-        if (!canvas) return;
-        canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
-        setHasFirmaCliente(false);
+        setFirmaClienteBase64(null);
+        setClearClienteKey(prev => prev + 1);
     };
 
     const limpiarRep = () => {
-        const canvas = canvasRepRef.current;
-        if (!canvas) return;
-        canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
-        setHasFirmaRep(false);
+        setFirmaRepBase64(null);
+        setClearRepKey(prev => prev + 1);
     };
 
     const telefonoValido = numero.length === 0 || (codigoPais.length > 0 && prefijo.length > 0 && numero.length >= 8);
     const emailValido = emailCliente.trim() === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailCliente);
     const tieneContactoCliente = numero.length >= 8 || (emailCliente.trim() !== '' && emailValido);
 
-    const puedeConfirmar = hasFirmaCliente && hasFirmaRep && nombreRep.trim().length > 0 && tieneContactoCliente && !submitting;
+    const puedeConfirmar = firmaClienteBase64 && firmaRepBase64 && nombreRep.trim().length > 0 && tieneContactoCliente && !submitting;
 
     const handleConfirmar = () => {
         if (!puedeConfirmar) return;
-
-        const firmaClienteBase64 = canvasClienteRef.current.toDataURL('image/png');
-        const firmaRepBase64 = canvasRepRef.current.toDataURL('image/png');
 
         const codigoPaisLimpio = codigoPais.replace(/[^\d]/g, '');
         const telefonoCompleto = numero.length >= 8 ? `${codigoPaisLimpio}${prefijo}${numero}` : null;
@@ -126,8 +171,8 @@ function FirmaDualModal({ onConfirm, onClose, submitting }) {
                             👤 Firma del cliente
                         </span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span className={`section-status ${hasFirmaCliente && tieneContactoCliente ? 'done' : 'pending'}`}>
-                                {hasFirmaCliente && tieneContactoCliente ? '✓ Listo' : 'Pendiente'}
+                            <span className={`section-status ${firmaClienteBase64 && tieneContactoCliente ? 'done' : 'pending'}`}>
+                                {firmaClienteBase64 && tieneContactoCliente ? '✓ Listo' : 'Pendiente'}
                             </span>
                             <span className={`section-chevron ${seccionAbierta === 'cliente' ? 'open' : ''}`}>▾</span>
                         </div>
@@ -140,7 +185,7 @@ function FirmaDualModal({ onConfirm, onClose, submitting }) {
                                     <span>Firma aquí</span>
                                     <button onClick={limpiarCliente}>Limpiar</button>
                                 </div>
-                                <canvas ref={canvasClienteRef} key="canvas-cliente" />
+                                <FirmaCanvas key={`cliente-${clearClienteKey}`} initialDataUrl={firmaClienteBase64} onChange={setFirmaClienteBase64} />
                             </div>
 
                             <div className="firma-input-group">
@@ -189,7 +234,7 @@ function FirmaDualModal({ onConfirm, onClose, submitting }) {
                                 />
                             </div>
 
-                            {hasFirmaCliente && tieneContactoCliente && (
+                            {firmaClienteBase64 && tieneContactoCliente && (
                                 <button
                                     style={{
                                         width: '100%', padding: '10px', background: '#F0FDF4',
@@ -216,8 +261,8 @@ function FirmaDualModal({ onConfirm, onClose, submitting }) {
                             🏢 Firma del representante
                         </span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span className={`section-status ${hasFirmaRep && nombreRep.trim() ? 'done' : 'pending'}`}>
-                                {hasFirmaRep && nombreRep.trim() ? '✓ Listo' : 'Pendiente'}
+                            <span className={`section-status ${firmaRepBase64 && nombreRep.trim() ? 'done' : 'pending'}`}>
+                                {firmaRepBase64 && nombreRep.trim() ? '✓ Listo' : 'Pendiente'}
                             </span>
                             <span className={`section-chevron ${seccionAbierta === 'representante' ? 'open' : ''}`}>▾</span>
                         </div>
@@ -230,7 +275,7 @@ function FirmaDualModal({ onConfirm, onClose, submitting }) {
                                     <span>Firma aquí</span>
                                     <button onClick={limpiarRep}>Limpiar</button>
                                 </div>
-                                <canvas ref={canvasRepRef} key="canvas-rep" />
+                                <FirmaCanvas key={`rep-${clearRepKey}`} initialDataUrl={firmaRepBase64} onChange={setFirmaRepBase64} />
                             </div>
 
                             <div className="firma-input-group">
