@@ -5,7 +5,7 @@ const { pool } = require('../db/pool');
 
 async function run() {
     try {
-        const sqlPath = path.join(__dirname, 'add_multitenancy.sql');
+        const sqlPath = path.join(__dirname, '001_add_multitenancy.sql');
         const sql = fs.readFileSync(sqlPath, 'utf8');
         console.log('Corriendo migración multi-tenancy...');
         await pool.query(sql);
