@@ -1,4 +1,4 @@
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   const backendUrl = process.env.RAILWAY_BACKEND_URL;
 
   if (!backendUrl) {
